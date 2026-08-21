@@ -2,6 +2,19 @@
 **/.DS_Store
 Thumbs.db
 
-# Real per-app env files (may contain DB/AWS credentials) - only the
-# .env.example placeholders are meant to be committed
-.env
+# PHP dependencies - installed by `composer install` (run locally, or by
+# .github/workflows/deploy.yml before packaging the app for deploy).
+# composer.lock IS committed on purpose, for reproducible installs.
+event-ticketing/vendor/
+
+# Build artifact produced by deploy.yml before upload to S3.
+assignment-app.zip
+
+# Terraform working files - never commit local state, provider cache, or plans.
+# The real state lives in the assignment-tfstate S3 backend.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfplan
+# .terraform.lock.hcl IS intentionally committed for reproducible provider versions.
