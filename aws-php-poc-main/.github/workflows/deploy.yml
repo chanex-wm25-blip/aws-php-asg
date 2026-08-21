@@ -1,0 +1,140 @@
+name: CD - Deploy Application
+
+# Reusable workflow (workflow_call) - invoked by ci.yml, but also kept
+# independently manually runnable (workflow_dispatch). Never auto-triggered on
+# push. Deploying always applies infra first (job `infra` below, which calls
+# build.yml) so the `app` job never targets instances/an ASG that don't exist
+# yet or are out of date - that's the sequencing this workflow guarantees.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to deploy (branch, tag, or commit SHA)"
+        required: false
+        default: main
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to deploy (branch, tag, or commit SHA)"
+        required: false
+        type: string
+        default: main
+
+env:
+  AWS_REGION: us-east-1
+  APP_DIR: event-ticketing
+  ARTIFACT_PREFIX: artifacts
+  APP_TAG: assignment-event-ticketing
+
+jobs:
+  infra:
+    name: Apply infrastructure (prerequisite for app deploy)
+    uses: ./.github/workflows/build.yml
+    with:
+      action: apply
+    secrets: inherit
+
+  app:
+    name: Build & deploy app to ASG instances
+    needs: infra
+    runs-on: ubuntu-latest
+    # Bucket name comes from the infra job's terraform output, not a hardcoded
+    # value - keeps this in lockstep with the account-ID-suffixed bucket name.
+    env:
+      ARTIFACT_BUCKET: ${{ needs.infra.outputs.s3_bucket }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      # AWS Academy Learner Lab credentials expire every ~3-4 hours and rotate
+      # per session - refresh these 3 repo secrets before running this workflow.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup PHP + Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+
+      - name: Install app dependencies (AWS SDK for PHP)
+        working-directory: ${{ env.APP_DIR }}
+        run: composer install --no-dev --optimize-autoloader
+
+      - name: Package application
+        working-directory: ${{ env.APP_DIR }}
+        run: zip -r ../assignment-app.zip . -x "uploads/*"
+
+      - name: Upload artifact to S3
+        run: |
+          aws s3 cp assignment-app.zip \
+            "s3://${{ env.ARTIFACT_BUCKET }}/${{ env.ARTIFACT_PREFIX }}/assignment-app.zip"
+
+      # The other half of the sequencing fix: `terraform apply` in the `infra`
+      # job returns as soon as the AWS API calls succeed, not once instances
+      # have finished booting and registered with SSM. Poll until at least one
+      # is actually reachable before sending the deploy command to it.
+      - name: Wait for an SSM-managed running instance
+        run: |
+          set -euo pipefail
+
+          for i in $(seq 1 30); do
+            INSTANCE_IDS=$(aws ec2 describe-instances \
+              --filters "Name=tag:App,Values=${{ env.APP_TAG }}" "Name=instance-state-name,Values=running" \
+              --query "Reservations[].Instances[].InstanceId" --output text)
+
+            if [ -n "$INSTANCE_IDS" ]; then
+              IDS_CSV=$(echo "$INSTANCE_IDS" | tr '\t ' ',' | sed 's/,,*/,/g; s/^,//; s/,$//')
+              ONLINE_COUNT=$(aws ssm describe-instance-information \
+                --filters "Key=InstanceIds,Values=$IDS_CSV" \
+                --query "length(InstanceInformationList[?PingStatus=='Online'])" --output text)
+
+              if [ "$ONLINE_COUNT" != "0" ] && [ "$ONLINE_COUNT" != "None" ]; then
+                echo "Found $ONLINE_COUNT SSM-managed instance(s) online."
+                exit 0
+              fi
+            fi
+
+            echo "Waiting for at least one running + SSM-online instance (attempt $i/30)..."
+            sleep 10
+          done
+
+          echo "Timed out waiting for a running, SSM-managed instance."
+          exit 1
+
+      - name: Deploy to ASG instances via SSM
+        run: |
+          set -euo pipefail
+
+          INSTANCE_IDS=$(aws ec2 describe-instances \
+            --filters "Name=tag:App,Values=${{ env.APP_TAG }}" "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[].InstanceId" --output text)
+
+          if [ -z "$INSTANCE_IDS" ]; then
+            echo "No running instances found for tag App=${{ env.APP_TAG }}"
+            exit 1
+          fi
+
+          COMMAND_ID=$(aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=tag:App,Values=${{ env.APP_TAG }}" \
+            --comment "${{ env.APP_TAG }} deploy" \
+            --parameters '{"commands":[
+              "cloud-init status --wait",
+              "aws s3 cp s3://${{ env.ARTIFACT_BUCKET }}/${{ env.ARTIFACT_PREFIX }}/assignment-app.zip /tmp/assignment-app.zip",
+              "sudo rm -rf /var/www/html/*",
+              "sudo unzip -o /tmp/assignment-app.zip -d /var/www/html",
+              "sudo systemctl restart httpd"
+            ]}' \
+            --query "Command.CommandId" --output text)
+
+          for id in $INSTANCE_IDS; do
+            aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$id"
+            aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$id"
+          done
