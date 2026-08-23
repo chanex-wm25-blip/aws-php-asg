@@ -1,0 +1,89 @@
+name: CI - Build Infrastructure
+
+# Reusable workflow (workflow_call) - invoked by ci.yml directly for plan/destroy,
+# and by deploy.yml to apply infra before a code deploy. Also kept independently
+# manually runnable (workflow_dispatch) - infra changes are never applied
+# automatically on push either way.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Terraform action to run"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+        default: plan
+  workflow_call:
+    inputs:
+      action:
+        description: "Terraform action to run (plan / apply / destroy)"
+        required: true
+        type: string
+    outputs:
+      s3_bucket:
+        description: "Resolved uploads/artifacts S3 bucket name (from terraform output). Only populated on apply."
+        value: ${{ jobs.terraform.outputs.s3_bucket }}
+
+env:
+  AWS_REGION: us-east-1
+  TF_WORKING_DIR: infra/envs/sandbox
+
+jobs:
+  terraform:
+    name: Terraform ${{ inputs.action }}
+    runs-on: ubuntu-latest
+    outputs:
+      s3_bucket: ${{ steps.tf_output.outputs.s3_bucket }}
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # AWS Academy Learner Lab credentials expire every ~3-4 hours and rotate
+      # per session - refresh these 3 repo secrets before running this workflow.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        if: ${{ inputs.action == 'plan' }}
+        run: terraform plan
+
+      - name: Terraform apply
+        if: ${{ inputs.action == 'apply' }}
+        run: terraform apply -auto-approve
+
+      # Expose the resolved bucket name so deploy.yml (which calls this workflow)
+      # can target the right bucket without hardcoding it - Terraform stays the
+      # single source of truth for the name.
+      - name: Capture Terraform outputs
+        id: tf_output
+        if: ${{ inputs.action == 'apply' }}
+        run: echo "s3_bucket=$(terraform output -raw s3_bucket_name)" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform destroy
+        if: ${{ inputs.action == 'destroy' }}
+        run: terraform destroy -auto-approve

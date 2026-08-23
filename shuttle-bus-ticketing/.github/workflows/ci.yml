@@ -1,0 +1,43 @@
+name: CI - Full Pipeline
+
+# Single entry point that integrates build.yml (infra) and deploy.yml (infra +
+# app code). Manual trigger only - nothing here runs automatically on push.
+#
+# - mode=plan / mode=destroy -> infra-only, via build.yml directly.
+# - mode=deploy               -> full pipeline via deploy.yml, which itself
+#   applies infra first (calling build.yml) and only then deploys app code -
+#   the `needs: infra` dependency inside deploy.yml is what guarantees that
+#   order and avoids trying to SSM into instances that don't exist yet.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "plan/destroy = infra only. deploy = apply infra, then deploy app code."
+        required: true
+        type: choice
+        options:
+          - plan
+          - deploy
+          - destroy
+        default: deploy
+      ref:
+        description: "Git ref to deploy (only used when mode=deploy)"
+        required: false
+        default: main
+
+jobs:
+  infra-only:
+    name: Infra ${{ inputs.mode }}
+    if: ${{ inputs.mode == 'plan' || inputs.mode == 'destroy' }}
+    uses: ./.github/workflows/build.yml
+    with:
+      action: ${{ inputs.mode }}
+    secrets: inherit
+
+  full-deploy:
+    name: Apply infra + deploy app
+    if: ${{ inputs.mode == 'deploy' }}
+    uses: ./.github/workflows/deploy.yml
+    with:
+      ref: ${{ inputs.ref }}
+    secrets: inherit
