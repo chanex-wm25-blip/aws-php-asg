@@ -65,10 +65,10 @@ date_default_timezone_set('Asia/Kuala_Lumpur');
 //   $user = 'admin';
 //   $pass = 'your-rds-master-password';
 // ============================================================================
-$host   = getenv('DB_HOST') ?: 'localhost';
-$user   = getenv('DB_USER') ?: 'root';
-$pass   = getenv('DB_PASS') ?: '';
-$dbname = getenv('DB_NAME') ?: 'shuttle_bus_db';
+$host   = 'shuttle-bus-ticketing-rds.cipaxlgdrf49.us-east-1.rds.amazonaws.com';
+$user   = 'admin';
+$pass   = '+$b<5F]e=kZUabW&*gli';
+$dbname = 'shuttle_bus_db';
 
 // @-suppressed: even with MYSQLI_REPORT_OFF (no exception), a failed
 // connection still emits a PHP-level warning straight into the response
