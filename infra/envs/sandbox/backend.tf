@@ -10,10 +10,10 @@
 # name is only account-scoped, so "assignment-tf-lock" is fine as-is.
 terraform {
   backend "s3" {
-    bucket         = "shuttlebusticketing" # <-- change to a globally-unique name
+    bucket         = "assignment-tfstate-609329194143"
     key            = "sandbox/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "assignment-tf-lock"
+    dynamodb_table = "assignment-tf-shuttlebus"
     encrypt        = true
   }
 }

@@ -63,7 +63,7 @@ variable "secret_name" {
 variable "s3_bucket_name" {
   description = "Globally-unique bucket name for image uploads and deployment artifacts."
   type        = string
-  default     = "shuttlebusticketing"
+  default     = "assignment-tfstate-609329194143"
 }
 
 variable "artifact_key" {

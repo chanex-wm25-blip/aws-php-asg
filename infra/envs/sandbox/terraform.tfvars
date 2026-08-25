@@ -3,6 +3,6 @@
 # the assignment-{resource} sandbox configuration.
 aws_region     = "us-east-1"
 name_prefix    = "assignment"
-s3_bucket_name = "shuttlebusticketing"
+s3_bucket_name = "assignment-tfstate-609329194143"
 db_name        = "shuttle_bus_db"
 
