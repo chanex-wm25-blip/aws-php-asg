@@ -47,7 +47,7 @@ variable "instance_profile_name" {
 
 variable "db_name" {
   type    = string
-  default = "event_ticketing_db"
+  default = "shuttle_bus_db"
 }
 
 variable "db_username" {
@@ -61,9 +61,9 @@ variable "secret_name" {
 }
 
 variable "s3_bucket_name" {
-  description = "Globally-unique bucket name for event image uploads."
+  description = "Globally-unique bucket name for image uploads and deployment artifacts."
   type        = string
-  default     = "assignment-s3-uploads"
+  default     = "shuttlebusticketing"
 }
 
 variable "artifact_key" {

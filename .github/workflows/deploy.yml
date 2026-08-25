@@ -22,9 +22,9 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  APP_DIR: event-ticketing
+  APP_DIR: shuttle-bus-ticketing
   ARTIFACT_PREFIX: artifacts
-  APP_TAG: assignment-event-ticketing
+  APP_TAG: assignment-shuttle-bus-ticketing
 
 jobs:
   infra:
@@ -63,9 +63,14 @@ jobs:
         with:
           php-version: "8.2"
 
-      - name: Install app dependencies (AWS SDK for PHP)
+      - name: Install app dependencies
         working-directory: ${{ env.APP_DIR }}
-        run: composer install --no-dev --optimize-autoloader
+        run: |
+          if [ -f "composer.json" ]; then
+            composer install --no-dev --optimize-autoloader
+          else
+            echo "No composer.json found, skipping composer install."
+          fi
 
       - name: Package application
         working-directory: ${{ env.APP_DIR }}

@@ -23,6 +23,8 @@ SetEnv DB_PASS "$DB_PASS"
 SetEnv DB_NAME "$DB_NAME"
 SetEnv S3_BUCKET "${artifact_bucket}"
 SetEnv AWS_REGION "${aws_region}"
+SetEnv AWS_S3_BUCKET "${artifact_bucket}"
+SetEnv AWS_S3_REGION "${aws_region}"
 EOF
 
 mkdir -p /var/www/html
@@ -37,7 +39,7 @@ if aws s3api head-object --bucket "${artifact_bucket}" --key "${artifact_key}" -
   rm -rf /var/www/html/*
   unzip -o /tmp/assignment-app.zip -d /var/www/html
 else
-  echo "<?php http_response_code(200); echo 'assignment-event-ticketing: bootstrapped, waiting for first deploy.';" \
+  echo "<?php http_response_code(200); echo 'assignment-shuttle-bus-ticketing: bootstrapped, waiting for first deploy.';" \
     > /var/www/html/index.php
   # Matches healthz.php's contract (no DB dependency) so the ALB target group
   # already sees this instance as healthy before the first real deploy.

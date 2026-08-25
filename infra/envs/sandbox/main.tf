@@ -32,9 +32,7 @@ module "s3" {
   source = "../../modules/s3"
 
   name_prefix = var.name_prefix
-  # Suffix the account ID so the globally-unique bucket name doesn't collide
-  # with another account's, e.g. assignment-s3-uploads-123456789012.
-  bucket_name = "${var.s3_bucket_name}-${data.aws_caller_identity.current.account_id}"
+  bucket_name = var.s3_bucket_name
 }
 
 module "rds" {

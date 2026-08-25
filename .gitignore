@@ -5,7 +5,7 @@ Thumbs.db
 # PHP dependencies - installed by `composer install` (run locally, or by
 # .github/workflows/deploy.yml before packaging the app for deploy).
 # composer.lock IS committed on purpose, for reproducible installs.
-event-ticketing/vendor/
+shuttle-bus-ticketing/vendor/
 
 # Build artifact produced by deploy.yml before upload to S3.
 assignment-app.zip

@@ -8,7 +8,7 @@
 # permission boundary blocks that action.
 resource "aws_secretsmanager_secret" "db" {
   name                    = var.secret_name
-  description             = "RDS connection details for the event-ticketing app (${var.name_prefix} sandbox)"
+  description             = "RDS connection details for the shuttle-bus-ticketing app (${var.name_prefix} sandbox)"
   recovery_window_in_days = 0 # skip 30-day soft-delete; allows immediate re-creation
 
   tags = {

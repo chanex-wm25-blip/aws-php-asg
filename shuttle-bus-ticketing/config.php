@@ -124,8 +124,8 @@ $conn->query("SET time_zone = '+08:00'");
 //         fresh values from "AWS Details" and update .env (no restart
 //         needed).
 // ============================================================================
-define('AWS_S3_BUCKET', getenv('AWS_S3_BUCKET') ?: '');
-define('AWS_S3_REGION', getenv('AWS_S3_REGION') ?: 'us-east-1');
+define('AWS_S3_BUCKET', getenv('AWS_S3_BUCKET') ?: (getenv('S3_BUCKET') ?: 'shuttlebusticketing'));
+define('AWS_S3_REGION', getenv('AWS_S3_REGION') ?: (getenv('AWS_REGION') ?: 'us-east-1'));
 define('AWS_ACCESS_KEY_ID', getenv('AWS_ACCESS_KEY_ID') ?: '');
 define('AWS_SECRET_ACCESS_KEY', getenv('AWS_SECRET_ACCESS_KEY') ?: '');
 define('AWS_SESSION_TOKEN', getenv('AWS_SESSION_TOKEN') ?: '');
