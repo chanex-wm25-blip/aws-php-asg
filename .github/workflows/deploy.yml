@@ -124,12 +124,18 @@ jobs:
               fi
             else
               echo "Waiting for EC2 instances to reach 'running' state (attempt $i/45)..."
+              if [ $((i % 5)) -eq 0 ]; then
+                echo "--- ASG Scaling Activities ---"
+                aws autoscaling describe-scaling-activities --auto-scaling-group-name assignment-asg --max-items 3 --query "Activities[].[StatusCode,Description,Cause]" --output text || true
+              fi
             fi
 
             sleep 10
           done
 
           echo "Timed out waiting for a running, SSM-managed instance."
+          echo "--- Recent ASG Scaling Activities ---"
+          aws autoscaling describe-scaling-activities --auto-scaling-group-name assignment-asg --max-items 5 --output table || true
           exit 1
 
       - name: Deploy to ASG instances via SSM

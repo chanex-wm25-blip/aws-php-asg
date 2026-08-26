@@ -4,12 +4,22 @@ data "aws_ami" "amazon_linux" {
 
   filter {
     name   = "name"
-    values = ["al2023-ami-*-x86_64"]
+    values = ["al2023-ami-2023.*-x86_64"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
   }
 
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
+  }
+
+  filter {
+    name   = "state"
+    values = ["available"]
   }
 }
 
@@ -27,7 +37,7 @@ resource "aws_launch_template" "app" {
   vpc_security_group_ids = [var.ec2_sg_id]
 
   iam_instance_profile {
-    name = data.aws_iam_instance_profile.lab.name
+    arn = data.aws_iam_instance_profile.lab.arn
   }
 
   # Bootstraps Apache/PHP and the DB env vars from Secrets Manager. The actual
@@ -59,11 +69,7 @@ resource "aws_autoscaling_group" "app" {
   min_size            = var.min_size
   max_size            = var.max_size
   desired_capacity    = var.desired_capacity
-  health_check_type   = "ELB"
-  # Generous grace period: on a t3.micro, user-data runs dnf update + installs
-  # httpd/php/mariadb and pulls the app artifact from S3 before Apache serves
-  # healthz.php - a shorter window risks the ASG killing the instance mid-boot
-  # and looping. 300s comfortably covers a cold boot.
+  health_check_type   = "EC2"
   health_check_grace_period = 300
   target_group_arns         = [var.target_group_arn]
 
