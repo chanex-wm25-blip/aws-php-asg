@@ -1,57 +1,48 @@
 name: CD - Deploy Application
 
-# Reusable workflow (workflow_call) - invoked by ci.yml, but also kept
-# independently manually runnable (workflow_dispatch). Never auto-triggered on
-# push. Deploying always applies infra first (job `infra` below, which calls
-# build.yml) so the `app` job never targets instances/an ASG that don't exist
-# yet or are out of date - that's the sequencing this workflow guarantees.
 on:
   workflow_dispatch:
     inputs:
       ref:
         description: "Git ref to deploy (branch, tag, or commit SHA)"
         required: false
-        default: main
+        default: master
   workflow_call:
     inputs:
       ref:
         description: "Git ref to deploy (branch, tag, or commit SHA)"
         required: false
         type: string
-        default: main
+        default: master
 
 env:
   AWS_REGION: us-east-1
-  APP_DIR: shuttle-bus-ticketing
+  TF_WORKING_DIR: infra/envs/sandbox
+  APP_DIR: src
   ARTIFACT_PREFIX: artifacts
-  APP_TAG: assignment-shuttle-bus-ticketing
-  ASG_NAME: assignment-asg
-  EC2_NAME_TAG: assignment-ec2
+  ARTIFACT_NAME: sport-facility-bookings-app.zip
+  APP_TAG: sport-facility-bookings
+  ARTIFACT_BUCKET: "" # Populated dynamically from terraform output
+  ASG_NAME: ""        # Populated dynamically from terraform output
+
+permissions:
+  contents: read
+
+# Prevent concurrent state lock conflicts in S3/DynamoDB
+concurrency:
+  group: terraform-sandbox-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  infra:
-    name: Apply infrastructure (prerequisite for app deploy)
-    uses: ./.github/workflows/build.yml
-    with:
-      action: apply
-    secrets: inherit
-
-  app:
+  deploy:
     name: Build & deploy app to ASG instances
-    needs: infra
     runs-on: ubuntu-latest
-    # Bucket name comes from the infra job's terraform output, not a hardcoded
-    # value - keeps this in lockstep with the account-ID-suffixed bucket name.
-    env:
-      ARTIFACT_BUCKET: ${{ needs.infra.outputs.s3_bucket }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
 
-      # AWS Academy Learner Lab credentials expire every ~3-4 hours and rotate
-      # per session - refresh these 3 repo secrets before running this workflow.
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -60,131 +51,162 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+          terraform_wrapper: false
+
+      - name: Terraform apply & capture outputs
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform init -input=false
+          terraform apply -auto-approve
+          echo "ARTIFACT_BUCKET=$(terraform output -raw s3_bucket_name)" >> "$GITHUB_ENV"
+          echo "ASG_NAME=$(terraform output -raw asg_name)" >> "$GITHUB_ENV"
+
       - name: Setup PHP + Composer
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
 
-      - name: Install app dependencies
+      - name: Install app dependencies (AWS SDK for PHP)
         working-directory: ${{ env.APP_DIR }}
-        run: |
-          if [ -f "composer.json" ]; then
-            composer install --no-dev --optimize-autoloader
-          else
-            echo "No composer.json found, skipping composer install."
-          fi
+        run: composer install --no-dev --optimize-autoloader
 
       - name: Package application
         working-directory: ${{ env.APP_DIR }}
-        run: zip -r ../assignment-app.zip . -x "uploads/*"
+        run: zip -r "../${{ env.ARTIFACT_NAME }}" . -x "uploads/*"
 
       - name: Upload artifact to S3
         run: |
-          aws s3 cp assignment-app.zip \
-            "s3://${{ env.ARTIFACT_BUCKET }}/${{ env.ARTIFACT_PREFIX }}/assignment-app.zip"
+          aws s3 cp "${{ env.ARTIFACT_NAME }}" \
+            "s3://${{ env.ARTIFACT_BUCKET }}/${{ env.ARTIFACT_PREFIX }}/${{ env.ARTIFACT_NAME }}"
 
-      # The other half of the sequencing fix: `terraform apply` in the `infra`
-      # job returns as soon as the AWS API calls succeed, not once instances
-      # have finished booting and registered with SSM. Poll until at least one
-      # is actually reachable before sending the deploy command to it.
+      - name: Wait for any in-progress ASG instance refresh to settle
+        run: |
+          set -euo pipefail
+
+          # 'terraform apply' in the infra job may have picked up a newer
+          # AMI (data "aws_ami" uses most_recent = true) or another launch
+          # template change, which kicks off aws_autoscaling_group's Rolling
+          # instance_refresh in the background. Terraform doesn't wait for
+          # that to finish, so if we proceed immediately we can target an
+          # instance that's about to be replaced (InvocationDoesNotExist).
+          for i in $(seq 1 30); do
+            STATUS=$(aws autoscaling describe-instance-refreshes \
+              --auto-scaling-group-name "${{ env.ASG_NAME }}" \
+              --max-records 1 \
+              --query "InstanceRefreshes[0].Status" --output text 2>/dev/null || echo "None")
+
+            case "$STATUS" in
+              InProgress|Pending|Cancelling)
+                echo "Instance refresh status: $STATUS - waiting (attempt $i/30)..."
+                sleep 10
+                ;;
+              *)
+                echo "No in-progress instance refresh (status: $STATUS)."
+                exit 0
+                ;;
+            esac
+          done
+
+          echo "Timed out waiting for instance refresh to settle."
+          exit 1
+
       - name: Wait for an SSM-managed running instance
         run: |
           set -euo pipefail
 
-          echo "Polling for running ASG instances and SSM registration..."
-          echo "Looking for ASG: ${{ env.ASG_NAME }}"
-          for i in $(seq 1 45); do
-            # 1. Search by Auto Scaling Group name
+          for i in $(seq 1 30); do
             INSTANCE_IDS=$(aws ec2 describe-instances \
-              --filters "Name=instance-state-name,Values=running" "Name=tag:aws:autoscaling:groupName,Values=${{ env.ASG_NAME }}" \
+              --filters "Name=tag:App,Values=${{ env.APP_TAG }}" "Name=instance-state-name,Values=running" \
               --query "Reservations[].Instances[].InstanceId" --output text)
 
-            # 2. Fallback search by Name tag
-            if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
-              INSTANCE_IDS=$(aws ec2 describe-instances \
-                --filters "Name=instance-state-name,Values=running" "Name=tag:Name,Values=${{ env.ASG_NAME }}-instance,${{ env.EC2_NAME_TAG }}" \
-                --query "Reservations[].Instances[].InstanceId" --output text)
-            fi
-
-            # 3. Fallback search by App tag
-            if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
-              INSTANCE_IDS=$(aws ec2 describe-instances \
-                --filters "Name=instance-state-name,Values=running" "Name=tag:App,Values=${{ env.APP_TAG }}" \
-                --query "Reservations[].Instances[].InstanceId" --output text)
-            fi
-
-            if [ -n "$INSTANCE_IDS" ] && [ "$INSTANCE_IDS" != "None" ]; then
+            if [ -n "$INSTANCE_IDS" ]; then
               IDS_CSV=$(echo "$INSTANCE_IDS" | tr '\t ' ',' | sed 's/,,*/,/g; s/^,//; s/,$//')
               ONLINE_COUNT=$(aws ssm describe-instance-information \
                 --filters "Key=InstanceIds,Values=$IDS_CSV" \
-                --query "length(InstanceInformationList[?PingStatus=='Online'])" --output text 2>/dev/null || echo "0")
+                --query "length(InstanceInformationList[?PingStatus=='Online'])" --output text)
 
               if [ "$ONLINE_COUNT" != "0" ] && [ "$ONLINE_COUNT" != "None" ]; then
-                echo "SUCCESS: Found $ONLINE_COUNT SSM-managed instance(s) online: $INSTANCE_IDS"
+                echo "Found $ONLINE_COUNT SSM-managed instance(s) online."
                 exit 0
-              else
-                echo "Found running instance(s) ($INSTANCE_IDS), waiting for SSM agent to report Online (attempt $i/45)..."
-              fi
-            else
-              echo "Waiting for EC2 instances to reach 'running' state (attempt $i/45)..."
-              if [ $((i % 5)) -eq 0 ]; then
-                echo "--- ASG Scaling Activities ---"
-                aws autoscaling describe-scaling-activities --auto-scaling-group-name "${{ env.ASG_NAME }}" --max-items 3 --query "Activities[].[StatusCode,Description,Cause]" --output text 2>&1 || true
               fi
             fi
 
+            echo "Waiting for at least one running + SSM-online instance (attempt $i/30)..."
             sleep 10
           done
 
           echo "Timed out waiting for a running, SSM-managed instance."
-          echo "--- Recent ASG Scaling Activities ---"
-          aws autoscaling describe-scaling-activities --auto-scaling-group-name "${{ env.ASG_NAME }}" --max-items 5 --output table 2>&1 || true
           exit 1
 
       - name: Deploy to ASG instances via SSM
         run: |
           set -euo pipefail
 
-          # Resolve all running instances in the ASG
-          INSTANCE_IDS=$(aws ec2 describe-instances \
-            --filters "Name=instance-state-name,Values=running" "Name=tag:aws:autoscaling:groupName,Values=${{ env.ASG_NAME }}" \
-            --query "Reservations[].Instances[].InstanceId" --output text)
-
-          if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
-            INSTANCE_IDS=$(aws ec2 describe-instances \
-              --filters "Name=instance-state-name,Values=running" "Name=tag:Name,Values=${{ env.ASG_NAME }}-instance,${{ env.EC2_NAME_TAG }}" \
-              --query "Reservations[].Instances[].InstanceId" --output text)
-          fi
-
-          if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
-            INSTANCE_IDS=$(aws ec2 describe-instances \
-              --filters "Name=instance-state-name,Values=running" "Name=tag:App,Values=${{ env.APP_TAG }}" \
-              --query "Reservations[].Instances[].InstanceId" --output text)
-          fi
-
-          if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
-            echo "No running instances found for deployment."
-            exit 1
-          fi
-
-          IDS_LIST=$(echo "$INSTANCE_IDS" | tr '\t' ' ')
-          echo "Deploying application to instance(s): $IDS_LIST"
-
           COMMAND_ID=$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
-            --instance-ids $IDS_LIST \
-            --comment "shuttle-bus-ticketing deploy" \
+            --targets "Key=tag:App,Values=${{ env.APP_TAG }}" \
+            --comment "${{ env.APP_TAG }} deploy" \
             --parameters '{"commands":[
-              "cloud-init status --wait || true",
-              "aws s3 cp s3://${{ env.ARTIFACT_BUCKET }}/${{ env.ARTIFACT_PREFIX }}/assignment-app.zip /tmp/assignment-app.zip",
+              "cloud-init status --wait",
+              "aws s3 cp s3://${{ env.ARTIFACT_BUCKET }}/${{ env.ARTIFACT_PREFIX }}/${{ env.ARTIFACT_NAME }} /tmp/app-deploy.zip",
               "sudo rm -rf /var/www/html/*",
-              "sudo unzip -o /tmp/assignment-app.zip -d /var/www/html",
+              "sudo unzip -o /tmp/app-deploy.zip -d /var/www/html",
+              "DB_HOST=$(grep -oP \"(?<=env\\[DB_HOST\\] = ).*\" /etc/php-fpm.d/app-env.conf | head -1 | tr -d \"\\r\")",
+              "DB_USER=$(grep -oP \"(?<=env\\[DB_USER\\] = ).*\" /etc/php-fpm.d/app-env.conf | head -1 | tr -d \"\\r\")",
+              "DB_PASS=$(grep -oP \"(?<=env\\[DB_PASS\\] = ).*\" /etc/php-fpm.d/app-env.conf | head -1 | tr -d \"\\r\")",
+              "DB_NAME=$(grep -oP \"(?<=env\\[DB_NAME\\] = ).*\" /etc/php-fpm.d/app-env.conf | head -1 | tr -d \"\\r\")",
+              "S3_BUCKET=$(grep -oP \"(?<=env\\[AWS_S3_BUCKET\\] = ).*\" /etc/php-fpm.d/app-env.conf | head -1 | tr -d \"\\r\")",
+              "S3_REGION=$(grep -oP \"(?<=env\\[AWS_S3_REGION\\] = ).*\" /etc/php-fpm.d/app-env.conf | head -1 | tr -d \"\\r\")",
+              "printf 'DB_HOST=%s\\nDB_USER=%s\\nDB_PASS=%s\\nDB_NAME=%s\\nAWS_S3_BUCKET=%s\\nAWS_S3_REGION=%s\\n' \"$DB_HOST\" \"$DB_USER\" \"$DB_PASS\" \"$DB_NAME\" \"$S3_BUCKET\" \"$S3_REGION\" | sudo tee /var/www/html/.env > /dev/null",
+              "sudo systemctl restart php-fpm || true",
               "sudo systemctl restart httpd"
             ]}' \
             --query "Command.CommandId" --output text)
 
-          for id in $IDS_LIST; do
-            echo "Waiting for deploy command execution on $id..."
-            aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$id"
-            aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$id"
+          if [ -z "$COMMAND_ID" ] || [ "$COMMAND_ID" = "None" ]; then
+            echo "send-command returned no CommandId - no instances matched tag App=${{ env.APP_TAG }} at dispatch time."
+            exit 1
+          fi
+
+          # Don't reuse an instance-ID list captured before send-command: the
+          # ASG may be mid instance-refresh (e.g. a new AMI picked up by
+          # 'most_recent = true' rolling the launch template), so an instance
+          # that was "running" a moment ago can be gone by the time SSM
+          # resolves the tag-based --targets, causing InvocationDoesNotExist.
+          # Instead, ask SSM which instances the command actually targeted,
+          # giving it a few seconds to register the invocations first.
+          TARGET_IDS=""
+          for i in $(seq 1 6); do
+            TARGET_IDS=$(aws ssm list-command-invocations \
+              --command-id "$COMMAND_ID" \
+              --query "CommandInvocations[].InstanceId" --output text)
+            if [ -n "$TARGET_IDS" ]; then
+              break
+            fi
+            echo "No invocations registered yet, retrying ($i/6)..."
+            sleep 5
           done
+
+          if [ -z "$TARGET_IDS" ]; then
+            echo "No SSM invocations were created for command $COMMAND_ID - target instance(s) disappeared before dispatch completed."
+            exit 1
+          fi
+
+          OVERALL_SUCCESS=true
+          for id in $TARGET_IDS; do
+            aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$id" || true
+            STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$id" --query "Status" --output text)
+            aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$id"
+            if [ "$STATUS" != "Success" ]; then
+              OVERALL_SUCCESS=false
+            fi
+          done
+
+          if [ "$OVERALL_SUCCESS" = false ]; then
+            echo "SSM deployment failed on one or more instances."
+            exit 1
+          fi

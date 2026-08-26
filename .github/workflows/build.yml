@@ -1,9 +1,5 @@
 name: CI - Build Infrastructure
 
-# Reusable workflow (workflow_call) - invoked by ci.yml directly for plan/destroy,
-# and by deploy.yml to apply infra before a code deploy. Also kept independently
-# manually runnable (workflow_dispatch) - infra changes are never applied
-# automatically on push either way.
 on:
   workflow_dispatch:
     inputs:
@@ -20,23 +16,35 @@ on:
     inputs:
       action:
         description: "Terraform action to run (plan / apply / destroy)"
-        required: true
+        required: false
         type: string
+        default: plan
     outputs:
       s3_bucket:
         description: "Resolved uploads/artifacts S3 bucket name (from terraform output). Only populated on apply."
         value: ${{ jobs.terraform.outputs.s3_bucket }}
+      asg_name:
+        description: "Resolved ASG name (from terraform output). Only populated on apply."
+        value: ${{ jobs.terraform.outputs.asg_name }}
 
 env:
   AWS_REGION: us-east-1
   TF_WORKING_DIR: infra/envs/sandbox
 
+# Prevent concurrent state lock conflicts in S3/DynamoDB
+concurrency:
+  group: terraform-sandbox-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   terraform:
     name: Terraform ${{ inputs.action }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       s3_bucket: ${{ steps.tf_output.outputs.s3_bucket }}
+      asg_name: ${{ steps.tf_output.outputs.asg_name }}
     defaults:
       run:
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -44,8 +52,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # AWS Academy Learner Lab credentials expire every ~3-4 hours and rotate
-      # per session - refresh these 3 repo secrets before running this workflow.
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -58,6 +64,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.9.0"
+          terraform_wrapper: false
 
       - name: Terraform fmt check
         run: terraform fmt -check -recursive
@@ -76,13 +83,12 @@ jobs:
         if: ${{ inputs.action == 'apply' }}
         run: terraform apply -auto-approve
 
-      # Expose the resolved bucket name so deploy.yml (which calls this workflow)
-      # can target the right bucket without hardcoding it - Terraform stays the
-      # single source of truth for the name.
       - name: Capture Terraform outputs
         id: tf_output
-        if: ${{ inputs.action == 'apply' }}
-        run: echo "s3_bucket=$(terraform output -raw s3_bucket_name)" >> "$GITHUB_OUTPUT"
+        if: ${{ inputs.action == 'apply' && success() }}
+        run: |
+          echo "s3_bucket=$(terraform output -raw s3_bucket_name)" >> "$GITHUB_OUTPUT"
+          echo "asg_name=$(terraform output -raw asg_name)" >> "$GITHUB_OUTPUT"
 
       - name: Terraform destroy
         if: ${{ inputs.action == 'destroy' }}
