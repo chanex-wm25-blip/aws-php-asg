@@ -25,6 +25,8 @@ env:
   APP_DIR: shuttle-bus-ticketing
   ARTIFACT_PREFIX: artifacts
   APP_TAG: assignment-shuttle-bus-ticketing
+  ASG_NAME: assignment-asg
+  EC2_NAME_TAG: assignment-ec2
 
 jobs:
   infra:
@@ -90,23 +92,24 @@ jobs:
           set -euo pipefail
 
           echo "Polling for running ASG instances and SSM registration..."
+          echo "Looking for ASG: ${{ env.ASG_NAME }}"
           for i in $(seq 1 45); do
             # 1. Search by Auto Scaling Group name
             INSTANCE_IDS=$(aws ec2 describe-instances \
-              --filters "Name=instance-state-name,Values=running" "Name=tag:aws:autoscaling:groupName,Values=assignment-asg" \
+              --filters "Name=instance-state-name,Values=running" "Name=tag:aws:autoscaling:groupName,Values=${{ env.ASG_NAME }}" \
               --query "Reservations[].Instances[].InstanceId" --output text)
 
             # 2. Fallback search by Name tag
             if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
               INSTANCE_IDS=$(aws ec2 describe-instances \
-                --filters "Name=instance-state-name,Values=running" "Name=tag:Name,Values=assignment-asg-instance,assignment-ec2" \
+                --filters "Name=instance-state-name,Values=running" "Name=tag:Name,Values=${{ env.ASG_NAME }}-instance,${{ env.EC2_NAME_TAG }}" \
                 --query "Reservations[].Instances[].InstanceId" --output text)
             fi
 
             # 3. Fallback search by App tag
             if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
               INSTANCE_IDS=$(aws ec2 describe-instances \
-                --filters "Name=instance-state-name,Values=running" "Name=tag:App,Values=assignment-shuttle-bus-ticketing,assignment-event-ticketing" \
+                --filters "Name=instance-state-name,Values=running" "Name=tag:App,Values=${{ env.APP_TAG }}" \
                 --query "Reservations[].Instances[].InstanceId" --output text)
             fi
 
@@ -126,7 +129,7 @@ jobs:
               echo "Waiting for EC2 instances to reach 'running' state (attempt $i/45)..."
               if [ $((i % 5)) -eq 0 ]; then
                 echo "--- ASG Scaling Activities ---"
-                aws autoscaling describe-scaling-activities --auto-scaling-group-name assignment-asg --max-items 3 --query "Activities[].[StatusCode,Description,Cause]" --output text || true
+                aws autoscaling describe-scaling-activities --auto-scaling-group-name "${{ env.ASG_NAME }}" --max-items 3 --query "Activities[].[StatusCode,Description,Cause]" --output text 2>&1 || true
               fi
             fi
 
@@ -135,7 +138,7 @@ jobs:
 
           echo "Timed out waiting for a running, SSM-managed instance."
           echo "--- Recent ASG Scaling Activities ---"
-          aws autoscaling describe-scaling-activities --auto-scaling-group-name assignment-asg --max-items 5 --output table || true
+          aws autoscaling describe-scaling-activities --auto-scaling-group-name "${{ env.ASG_NAME }}" --max-items 5 --output table 2>&1 || true
           exit 1
 
       - name: Deploy to ASG instances via SSM
@@ -144,18 +147,18 @@ jobs:
 
           # Resolve all running instances in the ASG
           INSTANCE_IDS=$(aws ec2 describe-instances \
-            --filters "Name=instance-state-name,Values=running" "Name=tag:aws:autoscaling:groupName,Values=assignment-asg" \
+            --filters "Name=instance-state-name,Values=running" "Name=tag:aws:autoscaling:groupName,Values=${{ env.ASG_NAME }}" \
             --query "Reservations[].Instances[].InstanceId" --output text)
 
           if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
             INSTANCE_IDS=$(aws ec2 describe-instances \
-              --filters "Name=instance-state-name,Values=running" "Name=tag:Name,Values=assignment-asg-instance,assignment-ec2" \
+              --filters "Name=instance-state-name,Values=running" "Name=tag:Name,Values=${{ env.ASG_NAME }}-instance,${{ env.EC2_NAME_TAG }}" \
               --query "Reservations[].Instances[].InstanceId" --output text)
           fi
 
           if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
             INSTANCE_IDS=$(aws ec2 describe-instances \
-              --filters "Name=instance-state-name,Values=running" "Name=tag:App,Values=assignment-shuttle-bus-ticketing,assignment-event-ticketing" \
+              --filters "Name=instance-state-name,Values=running" "Name=tag:App,Values=${{ env.APP_TAG }}" \
               --query "Reservations[].Instances[].InstanceId" --output text)
           fi
 

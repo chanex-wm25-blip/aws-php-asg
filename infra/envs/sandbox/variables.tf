@@ -57,19 +57,19 @@ variable "db_username" {
 
 variable "secret_name" {
   type    = string
-  default = "shuttle-bus-ticketing-db-credentials"
+  default = "assignment-db-credentials"
 }
 
 variable "s3_bucket_name" {
   description = "Globally-unique bucket name for image uploads and deployment artifacts."
   type        = string
-  default     = "shuttle-bus-ticketing-609329194143"
+  default     = "shuttlebusticketing"
 }
 
 variable "artifact_key" {
   description = "S3 object key (within s3_bucket_name) that deploy.yml uploads the app release artifact to."
   type        = string
-  default     = "artifacts/shuttle-bus-ticketing-app.zip"
+  default     = "artifacts/assignment-app.zip"
 }
 
 variable "health_check_path" {

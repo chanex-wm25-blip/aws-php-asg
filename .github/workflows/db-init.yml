@@ -58,12 +58,12 @@ jobs:
           set -euo pipefail
 
           INSTANCE_ID=$(aws ec2 describe-instances \
-            --filters "Name=tag:App,Values=${{ env.APP_TAG }},assignment-event-ticketing" "Name=instance-state-name,Values=running" \
+            --filters "Name=tag:aws:autoscaling:groupName,Values=assignment-asg" "Name=instance-state-name,Values=running" \
             --query "Reservations[0].Instances[0].InstanceId" --output text)
 
           if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" == "None" ]; then
             INSTANCE_ID=$(aws ec2 describe-instances \
-              --filters "Name=tag:aws:autoscaling:groupName,Values=assignment-asg" "Name=instance-state-name,Values=running" \
+              --filters "Name=tag:App,Values=${{ env.APP_TAG }}" "Name=instance-state-name,Values=running" \
               --query "Reservations[0].Instances[0].InstanceId" --output text)
           fi
 
