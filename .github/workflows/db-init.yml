@@ -43,9 +43,9 @@ jobs:
 
       - name: Upload schema.sql, seed script, and sample images to S3
         run: |
-          aws s3 cp src/schema.sql "s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCHEMA_KEY }}"
+          aws s3 cp shuttle-bus-ticketing/schema.sql "s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCHEMA_KEY }}"
           aws s3 cp infra/script/seed-db.sh "s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCRIPT_KEY }}"
-          aws s3 sync src/uploads/ "s3://${{ env.SCHEMA_BUCKET }}/uploads/" \
+          aws s3 sync shuttle-bus-ticketing/uploads/ "s3://${{ env.SCHEMA_BUCKET }}/uploads/" \
             --exclude "index.html"
 
       - name: Run seed script on a running app instance via SSM
