@@ -9,6 +9,7 @@ env:
   SCHEMA_KEY: db-init/schema.sql
   SCRIPT_KEY: db-init/seed-db.sh
   SCHEMA_BUCKET: "" # Satisfies the VS Code static linter; populated dynamically at runtime
+  DB_HOST: "shuttle-bus-ticketing-rds.cipaxlgdrf49.us-east-1.rds.amazonaws.com"    
 
 permissions:
   contents: read
