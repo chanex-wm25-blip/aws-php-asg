@@ -89,14 +89,24 @@ jobs:
         run: |
           set -euo pipefail
 
+          echo "Polling for running ASG instances and SSM registration..."
           for i in $(seq 1 45); do
+            # 1. Search by Auto Scaling Group name
             INSTANCE_IDS=$(aws ec2 describe-instances \
-              --filters "Name=tag:App,Values=${{ env.APP_TAG }},assignment-event-ticketing" "Name=instance-state-name,Values=running" \
+              --filters "Name=instance-state-name,Values=running" "Name=tag:aws:autoscaling:groupName,Values=assignment-asg" \
               --query "Reservations[].Instances[].InstanceId" --output text)
 
+            # 2. Fallback search by Name tag
             if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
               INSTANCE_IDS=$(aws ec2 describe-instances \
-                --filters "Name=tag:aws:autoscaling:groupName,Values=assignment-asg" "Name=instance-state-name,Values=running" \
+                --filters "Name=instance-state-name,Values=running" "Name=tag:Name,Values=assignment-asg-instance,assignment-ec2" \
+                --query "Reservations[].Instances[].InstanceId" --output text)
+            fi
+
+            # 3. Fallback search by App tag
+            if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
+              INSTANCE_IDS=$(aws ec2 describe-instances \
+                --filters "Name=instance-state-name,Values=running" "Name=tag:App,Values=assignment-shuttle-bus-ticketing,assignment-event-ticketing" \
                 --query "Reservations[].Instances[].InstanceId" --output text)
             fi
 
@@ -104,16 +114,16 @@ jobs:
               IDS_CSV=$(echo "$INSTANCE_IDS" | tr '\t ' ',' | sed 's/,,*/,/g; s/^,//; s/,$//')
               ONLINE_COUNT=$(aws ssm describe-instance-information \
                 --filters "Key=InstanceIds,Values=$IDS_CSV" \
-                --query "length(InstanceInformationList[?PingStatus=='Online'])" --output text)
+                --query "length(InstanceInformationList[?PingStatus=='Online'])" --output text 2>/dev/null || echo "0")
 
               if [ "$ONLINE_COUNT" != "0" ] && [ "$ONLINE_COUNT" != "None" ]; then
-                echo "Found $ONLINE_COUNT SSM-managed instance(s) online: $INSTANCE_IDS"
+                echo "SUCCESS: Found $ONLINE_COUNT SSM-managed instance(s) online: $INSTANCE_IDS"
                 exit 0
               else
                 echo "Found running instance(s) ($INSTANCE_IDS), waiting for SSM agent to report Online (attempt $i/45)..."
               fi
             else
-              echo "No running ASG instances found yet (attempt $i/45)..."
+              echo "Waiting for EC2 instances to reach 'running' state (attempt $i/45)..."
             fi
 
             sleep 10
@@ -126,13 +136,20 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Resolve all running instances in the ASG
           INSTANCE_IDS=$(aws ec2 describe-instances \
-            --filters "Name=tag:App,Values=${{ env.APP_TAG }},assignment-event-ticketing" "Name=instance-state-name,Values=running" \
+            --filters "Name=instance-state-name,Values=running" "Name=tag:aws:autoscaling:groupName,Values=assignment-asg" \
             --query "Reservations[].Instances[].InstanceId" --output text)
 
           if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
             INSTANCE_IDS=$(aws ec2 describe-instances \
-              --filters "Name=tag:aws:autoscaling:groupName,Values=assignment-asg" "Name=instance-state-name,Values=running" \
+              --filters "Name=instance-state-name,Values=running" "Name=tag:Name,Values=assignment-asg-instance,assignment-ec2" \
+              --query "Reservations[].Instances[].InstanceId" --output text)
+          fi
+
+          if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
+            INSTANCE_IDS=$(aws ec2 describe-instances \
+              --filters "Name=instance-state-name,Values=running" "Name=tag:App,Values=assignment-shuttle-bus-ticketing,assignment-event-ticketing" \
               --query "Reservations[].Instances[].InstanceId" --output text)
           fi
 
