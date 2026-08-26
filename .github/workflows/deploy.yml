@@ -20,7 +20,7 @@ env:
   TF_WORKING_DIR: infra/envs/sandbox
   APP_DIR: shuttle-bus-ticketing
   ARTIFACT_PREFIX: artifacts
-  ARTIFACT_NAME: assignment-app.zip
+  ARTIFACT_NAME: shuttlebusbusticket-app.zip
   APP_TAG: assignment-shuttle-bus-ticketing
   ARTIFACT_BUCKET: "" # Populated dynamically from terraform output
   ASG_NAME: ""        # Populated dynamically from terraform output
