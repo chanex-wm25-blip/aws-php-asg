@@ -1,6 +1,6 @@
-# AWS Deployment Plan — `event-ticketing`
+# AWS Deployment Plan — `shuttle-bus-ticketing`
 
-This document is the implementation plan for deploying the [event-ticketing](../event-ticketing/) app to AWS
+This document is the implementation plan for deploying the [shuttle-bus-ticketing](../shuttle-bus-ticketing/) app to AWS
 using Terraform + GitHub Actions. Nothing has been built yet — this is the walkthrough reference.
 Account type: **AWS Academy Learner Lab** (temporary/rotating credentials, restricted IAM, $50 budget cap).
 Region: **us-east-1**. Environment: single **sandbox** environment (no prod/staging).
@@ -108,22 +108,22 @@ case this is a lab-account permission boundary, not a bug in the plan; fall back
 (SecureString) instead, which typically doesn't need any extra grant since `LabRole` already has broad SSM
 access in most Academy labs.
 
-## 3. App code changes required (`event-ticketing`)
+## 3. App code changes required (`shuttle-bus-ticketing`)
 
-1. [`helpers.php`](../event-ticketing/helpers.php) — **done.** `handle_image_upload()` / `delete_image_file()`
+1. [`helpers.php`](../shuttle-bus-ticketing/helpers.php) — **done.** `handle_image_upload()` / `delete_image_file()`
    now upload/delete via S3 (`aws/aws-sdk-php`, using the EC2 instance role's credentials automatically - no
    access keys anywhere in the app) whenever `S3_BUCKET` is set and the SDK is installed, storing the full
-   `https://<bucket>.s3.<region>.amazonaws.com/uploads/<file>` URL in `events.image_url`. If `S3_BUCKET` isn't
+   `https://<bucket>.s3.<region>.amazonaws.com/uploads/<file>` URL in `routes.image_url`. If `S3_BUCKET` isn't
    set or `vendor/` doesn't exist (plain local/Docker dev, no `composer install` run), both functions fall
    back to the original local-disk behavior untouched - `entity_image_url()` renders either kind of URL. The
    app's own README previously flagged this as "deliberately not wired to S3" - this is that exercise.
-   New [`composer.json`](../event-ticketing/composer.json) declares the `aws/aws-sdk-php` dependency;
+   New [`composer.json`](../shuttle-bus-ticketing/composer.json) declares the `aws/aws-sdk-php` dependency;
    `deploy.yml`'s `composer install` step installs it before packaging.
-2. [`config.php`](../event-ticketing/config.php) — no code change needed; it already reads
+2. [`config.php`](../shuttle-bus-ticketing/config.php) — no code change needed; it already reads
    `DB_HOST` / `DB_USER` / `DB_PASS` / `DB_NAME` from env vars. EC2 user-data fetches the RDS
    endpoint/password from the `assignment-db-credentials` Secrets Manager secret and exports them as Apache
    env vars, alongside `S3_BUCKET` and `AWS_REGION` for the upload code above.
-3. **Done.** [`healthz.php`](../event-ticketing/healthz.php) — the ALB target group's health check
+3. **Done.** [`healthz.php`](../shuttle-bus-ticketing/healthz.php) — the ALB target group's health check
    (`health_check_path`, defaulting to `/healthz.php` in both the `alb` module and root `variables.tf`) hits
    this instead of `index.php`. It skips `require 'config.php'` (which would `die()` the whole request rather
    than fail cleanly) but does its own **timeout-bounded** DB connectivity check (3s connect timeout, well
@@ -201,7 +201,7 @@ flowchart LR
 | [`ci.yml`](../.github/workflows/ci.yml) (CI - Full Pipeline) | Manual, with a `mode` input: `plan` / `deploy` / `destroy`, plus a `ref` input (used only when `mode=deploy`) | The single entry point. `plan`/`destroy` call `build.yml` directly (infra only). `deploy` calls `deploy.yml`, which applies infra **then** deploys the app in that order (see below) — this is the button you run day to day. **`plan` never creates/changes anything** - it's a read-only preview; to actually bring resources back after a `destroy`, run `mode=deploy` (or `build.yml` with `action=apply`). |
 | [`build.yml`](../.github/workflows/build.yml) (CI - Build Infrastructure) | Manual (`action` input: `plan`/`apply`/`destroy`), or called by `ci.yml`/`deploy.yml` | `terraform fmt -check`, `init`, `validate`, then the chosen action against `infra/envs/sandbox`. Infra is only ever applied from Terraform — Terraform is the single source of truth, no console click-ops. |
 | [`deploy.yml`](../.github/workflows/deploy.yml) (CD - Deploy Application) | Manual (`ref` input, defaults to `main`), or called by `ci.yml` | **Job `infra`**: calls `build.yml` with `action: apply` to guarantee infrastructure exists and is current. **Job `app`** (`needs: infra`): waits for a running, SSM-managed instance (closing the gap where `terraform apply` returns before instances finish booting), then `composer install`s the AWS SDK for PHP, zips the app, uploads it to `assignment-s3-uploads/artifacts/`, and uses **SSM `send-command`** to pull the new build onto every running instance and reload Apache. See §10 for the full flow. |
-| [`db-init.yml`](../.github/workflows/db-init.yml) (DB - Seed Database) | Manual, no inputs | One-time-only: runs [`schema.sql`](../event-ticketing/schema.sql) against `assignment-rds` (see §9). Safe to accidentally re-run — it skips the import if already seeded. Not wired into `ci.yml` since it's a one-off, not part of the regular deploy cycle. |
+| [`db-init.yml`](../.github/workflows/db-init.yml) (DB - Seed Database) | Manual, no inputs | One-time-only: runs [`schema.sql`](../shuttle-bus-ticketing/schema.sql) against `assignment-rds` (see §9). Safe to accidentally re-run — it skips the import if already seeded. Not wired into `ci.yml` since it's a one-off, not part of the regular deploy cycle. |
 
 All four workflows require repo secrets:
 - `AWS_ACCESS_KEY_ID`
@@ -219,7 +219,7 @@ still correct:
 2. **Step-level, inside `app`**: even after `infra` succeeds, `terraform apply` returns as soon as the AWS
    API calls succeed — not once new/replaced EC2 instances have finished booting and their SSM Agent has
    registered. The `app` job's "Wait for an SSM-managed running instance" step polls
-   `aws ssm describe-instance-information` until at least one instance tagged `App=assignment-event-ticketing`
+   `aws ssm describe-instance-information` until at least one instance tagged `App=assignment-shuttle-bus-ticketing`
    reports `PingStatus=Online` (up to 5 minutes) before sending the actual deploy command.
 
 Running `ci.yml` with `mode=deploy` is therefore safe to use as the everyday "ship my changes" button, even
@@ -319,7 +319,7 @@ left alone for the entire project.
 
 ## 9. Seeding the database (first time only)
 
-[`schema.sql`](../event-ticketing/schema.sql) does `CREATE DATABASE`, `CREATE TABLE`, and seed `INSERT`s in
+[`schema.sql`](../shuttle-bus-ticketing/schema.sql) does `CREATE DATABASE`, `CREATE TABLE`, and seed `INSERT`s in
 one script with no `IF NOT EXISTS` guards on the seed rows — running it twice against the same DB would
 fail (duplicate key on `users.email`) or duplicate rows. RDS is also private, so nothing outside the VPC
 (including a GitHub Actions runner) can reach it directly to run the script.
@@ -330,7 +330,7 @@ fail (duplicate key on `users.email`) or duplicate rows. RDS is also private, so
 2. Picks one currently-running app instance (found by its `App` tag) and uses **SSM Run Command** to have
    *that instance* (which already sits inside the VPC, next to RDS) download and execute `seed-db.sh`.
 3. `seed-db.sh` fetches DB credentials from the `assignment-db-credentials` Secrets Manager secret, checks
-   whether `event_ticketing_db.users` already exists, and only imports `schema.sql` if it doesn't.
+   whether `shuttle_bus_db.users` already exists, and only imports `schema.sql` if it doesn't.
 
 **To seed for the first time:** after `ci.yml` (`mode=deploy`, or `build.yml` `action=apply` directly) has
 finished and at least one ASG instance is `running`/healthy, run `db-init.yml` once from the Actions tab.
@@ -356,10 +356,10 @@ sequenceDiagram
     Build-->>Dev: infra up to date
     Dev->>GHA: app job (needs: infra)
     GHA->>GHA: composer install (AWS SDK for PHP)
-    GHA->>GHA: zip event-ticketing/ (excluding uploads/)
+    GHA->>GHA: zip shuttle-bus-ticketing/ (excluding uploads/)
     GHA->>S3: upload artifacts/assignment-app.zip
     GHA->>SSM: wait until an instance reports PingStatus=Online
-    GHA->>SSM: send-command (target: tag App=assignment-event-ticketing)
+    GHA->>SSM: send-command (target: tag App=assignment-shuttle-bus-ticketing)
     SSM->>EC2: pull artifacts/assignment-app.zip, replace /var/www/html, restart httpd
     EC2-->>GHA: command status per instance
 ```
@@ -374,5 +374,5 @@ A few things worth calling out:
   exists in S3 and, if so, pulls and extracts it at boot — the same artifact `deploy.yml` last uploaded. Only
   a genuinely fresh environment (nothing ever deployed) falls back to the placeholder page. This means you
   don't need to re-run the app deploy after every scaling event, only when the *code* changes.
-- **Image uploads in `event-ticketing/uploads/` are intentionally excluded** from the deploy zip — with the
+- **Image uploads in `shuttle-bus-ticketing/uploads/` are intentionally excluded** from the deploy zip — with the
   S3 upload change (§3), those live in `assignment-s3-uploads` instead, not on the instance's local disk.

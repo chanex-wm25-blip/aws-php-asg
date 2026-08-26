@@ -5,9 +5,9 @@ variable "name_prefix" {
 }
 
 variable "bucket_name" {
-  description = "Globally-unique S3 bucket name for uploaded event images."
+  description = "Globally-unique S3 bucket name for uploads."
   type        = string
-  default     = "assignment-s3-uploads-609329194143"
+  default     = "shuttlebusticketing"
 }
 
 variable "public_read_prefix" {

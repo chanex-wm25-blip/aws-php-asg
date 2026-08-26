@@ -1,11 +1,11 @@
-# assignment-s3-uploads: holds event photo uploads. Bucket ACLs stay blocked;
+# holds route photo uploads. Bucket ACLs stay blocked;
 # only unauthenticated GetObject under uploads/* is allowed via bucket policy so
 # images render in the browser, without allowing public listing or writes.
 resource "aws_s3_bucket" "uploads" {
   bucket = var.bucket_name
 
   # Sandbox environment: by the time you `terraform destroy`, this bucket will
-  # contain uploaded event images, deploy.yml release artifacts, and
+  # contain uploaded route images, deploy.yml release artifacts, and
   # db-init.yml's schema.sql/seed-db.sh. AWS refuses to delete a non-empty
   # bucket, so without force_destroy the destroy would fail on this resource.
   force_destroy = true
@@ -30,7 +30,7 @@ resource "aws_s3_bucket_policy" "public_read" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "PublicReadEventImages"
+        Sid       = "PublicReadRouteImages"
         Effect    = "Allow"
         Principal = "*"
         Action    = "s3:GetObject"
