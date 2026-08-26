@@ -6,22 +6,22 @@ on:
       ref:
         description: "Git ref to deploy (branch, tag, or commit SHA)"
         required: false
-        default: master
+        default: main
   workflow_call:
     inputs:
       ref:
         description: "Git ref to deploy (branch, tag, or commit SHA)"
         required: false
         type: string
-        default: master
+        default: main
 
 env:
   AWS_REGION: us-east-1
   TF_WORKING_DIR: infra/envs/sandbox
-  APP_DIR: src
+  APP_DIR: shuttle-bus-ticketing
   ARTIFACT_PREFIX: artifacts
-  ARTIFACT_NAME: sport-facility-bookings-app.zip
-  APP_TAG: sport-facility-bookings
+  ARTIFACT_NAME: assignment-app.zip
+  APP_TAG: assignment-shuttle-bus-ticketing
   ARTIFACT_BUCKET: "" # Populated dynamically from terraform output
   ASG_NAME: ""        # Populated dynamically from terraform output
 
@@ -72,7 +72,12 @@ jobs:
 
       - name: Install app dependencies (AWS SDK for PHP)
         working-directory: ${{ env.APP_DIR }}
-        run: composer install --no-dev --optimize-autoloader
+        run: |
+          if [ -f "composer.json" ]; then
+            composer install --no-dev --optimize-autoloader
+          else
+            echo "No composer.json found, skipping composer install."
+          fi
 
       - name: Package application
         working-directory: ${{ env.APP_DIR }}
