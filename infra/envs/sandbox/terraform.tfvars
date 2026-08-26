@@ -2,8 +2,8 @@
 # Left mostly empty on purpose - variables.tf already defaults everything to
 # the assignment-{resource} sandbox configuration.
 aws_region        = "us-east-1"
-name_prefix       = "assignment"
+name_prefix       = "shuttle-bus-ticketing"
 s3_bucket_name    = "shuttlebusticketing"
 db_name           = "shuttle_bus_db"
-secret_name       = "assignment-db-credentials"
+secret_name       = "shuttle-bus-ticketing-db-credentials"
 health_check_path = "/healthz.php"
