@@ -89,24 +89,33 @@ jobs:
         run: |
           set -euo pipefail
 
-          for i in $(seq 1 30); do
+          for i in $(seq 1 45); do
             INSTANCE_IDS=$(aws ec2 describe-instances \
-              --filters "Name=tag:App,Values=${{ env.APP_TAG }}" "Name=instance-state-name,Values=running" \
+              --filters "Name=tag:App,Values=${{ env.APP_TAG }},assignment-event-ticketing" "Name=instance-state-name,Values=running" \
               --query "Reservations[].Instances[].InstanceId" --output text)
 
-            if [ -n "$INSTANCE_IDS" ]; then
+            if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
+              INSTANCE_IDS=$(aws ec2 describe-instances \
+                --filters "Name=tag:aws:autoscaling:groupName,Values=assignment-asg" "Name=instance-state-name,Values=running" \
+                --query "Reservations[].Instances[].InstanceId" --output text)
+            fi
+
+            if [ -n "$INSTANCE_IDS" ] && [ "$INSTANCE_IDS" != "None" ]; then
               IDS_CSV=$(echo "$INSTANCE_IDS" | tr '\t ' ',' | sed 's/,,*/,/g; s/^,//; s/,$//')
               ONLINE_COUNT=$(aws ssm describe-instance-information \
                 --filters "Key=InstanceIds,Values=$IDS_CSV" \
                 --query "length(InstanceInformationList[?PingStatus=='Online'])" --output text)
 
               if [ "$ONLINE_COUNT" != "0" ] && [ "$ONLINE_COUNT" != "None" ]; then
-                echo "Found $ONLINE_COUNT SSM-managed instance(s) online."
+                echo "Found $ONLINE_COUNT SSM-managed instance(s) online: $INSTANCE_IDS"
                 exit 0
+              else
+                echo "Found running instance(s) ($INSTANCE_IDS), waiting for SSM agent to report Online (attempt $i/45)..."
               fi
+            else
+              echo "No running ASG instances found yet (attempt $i/45)..."
             fi
 
-            echo "Waiting for at least one running + SSM-online instance (attempt $i/30)..."
             sleep 10
           done
 
@@ -118,20 +127,29 @@ jobs:
           set -euo pipefail
 
           INSTANCE_IDS=$(aws ec2 describe-instances \
-            --filters "Name=tag:App,Values=${{ env.APP_TAG }}" "Name=instance-state-name,Values=running" \
+            --filters "Name=tag:App,Values=${{ env.APP_TAG }},assignment-event-ticketing" "Name=instance-state-name,Values=running" \
             --query "Reservations[].Instances[].InstanceId" --output text)
 
-          if [ -z "$INSTANCE_IDS" ]; then
-            echo "No running instances found for tag App=${{ env.APP_TAG }}"
+          if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
+            INSTANCE_IDS=$(aws ec2 describe-instances \
+              --filters "Name=tag:aws:autoscaling:groupName,Values=assignment-asg" "Name=instance-state-name,Values=running" \
+              --query "Reservations[].Instances[].InstanceId" --output text)
+          fi
+
+          if [ -z "$INSTANCE_IDS" ] || [ "$INSTANCE_IDS" = "None" ]; then
+            echo "No running instances found for deployment."
             exit 1
           fi
 
+          IDS_LIST=$(echo "$INSTANCE_IDS" | tr '\t' ' ')
+          echo "Deploying application to instance(s): $IDS_LIST"
+
           COMMAND_ID=$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
-            --targets "Key=tag:App,Values=${{ env.APP_TAG }}" \
-            --comment "${{ env.APP_TAG }} deploy" \
+            --instance-ids $IDS_LIST \
+            --comment "shuttle-bus-ticketing deploy" \
             --parameters '{"commands":[
-              "cloud-init status --wait",
+              "cloud-init status --wait || true",
               "aws s3 cp s3://${{ env.ARTIFACT_BUCKET }}/${{ env.ARTIFACT_PREFIX }}/assignment-app.zip /tmp/assignment-app.zip",
               "sudo rm -rf /var/www/html/*",
               "sudo unzip -o /tmp/assignment-app.zip -d /var/www/html",
@@ -139,7 +157,8 @@ jobs:
             ]}' \
             --query "Command.CommandId" --output text)
 
-          for id in $INSTANCE_IDS; do
+          for id in $IDS_LIST; do
+            echo "Waiting for deploy command execution on $id..."
             aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$id"
             aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$id"
           done

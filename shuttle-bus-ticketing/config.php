@@ -67,7 +67,7 @@ date_default_timezone_set('Asia/Kuala_Lumpur');
 // ============================================================================
 $host   = 'shuttle-bus-ticketing-rds.cipaxlgdrf49.us-east-1.rds.amazonaws.com';
 $user   = 'admin';
-$pass   = '+$b<5F]e=kZUabW&*gli';
+$pass   = 'GdgGX>StgYVB=5YI$Rrr';
 $dbname = 'shuttle_bus_db';
 
 // @-suppressed: even with MYSQLI_REPORT_OFF (no exception), a failed
