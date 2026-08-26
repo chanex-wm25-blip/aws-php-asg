@@ -21,7 +21,7 @@ env:
   APP_DIR: shuttle-bus-ticketing
   ARTIFACT_PREFIX: artifacts
   ARTIFACT_NAME: shuttlebusbusticket-app.zip
-  APP_TAG: assignment-shuttle-bus-ticketing
+  APP_TAG: shuttle-bus-ticketing-shuttle-bus-ticketing
   ARTIFACT_BUCKET: "" # Populated dynamically from terraform output
   ASG_NAME: ""        # Populated dynamically from terraform output
 
