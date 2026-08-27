@@ -160,13 +160,13 @@ jobs:
               "aws s3 cp s3://${{ env.ARTIFACT_BUCKET }}/${{ env.ARTIFACT_PREFIX }}/${{ env.ARTIFACT_NAME }} /tmp/app-deploy.zip",
               "sudo rm -rf /var/www/html/*",
               "sudo unzip -o /tmp/app-deploy.zip -d /var/www/html",
-              DB_HOST=$(awk -F'= ' '/env\[DB_HOST\]/ {print $2}' /etc/php-fpm.d/app-env.conf | tr -d '\r"')
-              DB_USER=$(awk -F'= ' '/env\[DB_USER\]/ {print $2}' /etc/php-fpm.d/app-env.conf | tr -d '\r"')
-              DB_PASS=$(awk -F'= ' '/env\[DB_PASS\]/ {print $2}' /etc/php-fpm.d/app-env.conf | tr -d '\r"')
-              DB_NAME=$(awk -F'= ' '/env\[DB_NAME\]/ {print $2}' /etc/php-fpm.d/app-env.conf | tr -d '\r"')
-              S3_BUCKET=$(awk -F'= ' '/env\[AWS_S3_BUCKET\]/ {print $2}' /etc/php-fpm.d/app-env.conf | tr -d '\r"')
-              S3_REGION=$(awk -F'= ' '/env\[AWS_S3_REGION\]/ {print $2}' /etc/php-fpm.d/app-env.conf | tr -d '\r"')
-              "printf 'DB_HOST=%s\\nDB_USER=%s\\nDB_PASS=%s\\nDB_NAME=%s\\nAWS_S3_BUCKET=%s\\nAWS_S3_REGION=%s\\n' \"$DB_HOST\" \"$DB_USER\" \"$DB_PASS\" \"$DB_NAME\" \"$S3_BUCKET\" \"$S3_REGION\" | sudo tee /var/www/html/.env > /dev/null",
+              "DB_HOST=$(grep -oE '\''env\\[DB_HOST\\] = [^ ]+'\'' /etc/php-fpm.d/app-env.conf | awk -F\" '\''{print $2}'\'' | head -1)",
+              "DB_USER=$(grep -oE '\''env\\[DB_USER\\] = [^ ]+'\'' /etc/php-fpm.d/app-env.conf | awk -F\" '\''{print $2}'\'' | head -1)",
+              "DB_PASS=$(grep -oE '\''env\\[DB_PASS\\] = [^ ]+'\'' /etc/php-fpm.d/app-env.conf | awk -F\" '\''{print $2}'\'' | head -1)",
+              "DB_NAME=$(grep -oE '\''env\\[DB_NAME\\] = [^ ]+'\'' /etc/php-fpm.d/app-env.conf | awk -F\" '\''{print $2}'\'' | head -1)",
+              "S3_BUCKET=$(grep -oE '\''env\\[AWS_S3_BUCKET\\] = [^ ]+'\'' /etc/php-fpm.d/app-env.conf | awk -F\" '\''{print $2}'\'' | head -1)",
+              "S3_REGION=$(grep -oE '\''env\\[AWS_S3_REGION\\] = [^ ]+'\'' /etc/php-fpm.d/app-env.conf | awk -F\" '\''{print $2}'\'' | head -1)",
+              "printf '\''DB_HOST=%s\\nDB_USER=%s\\nDB_PASS=%s\\nDB_NAME=%s\\nAWS_S3_BUCKET=%s\\nAWS_S3_REGION=%s\\n'\'' \"$DB_HOST\" \"$DB_USER\" \"$DB_PASS\" \"$DB_NAME\" \"$S3_BUCKET\" \"$S3_REGION\" | sudo tee /var/www/html/.env > /dev/null",
               "sudo systemctl restart php-fpm || true",
               "sudo systemctl restart httpd"
             ]}' \
