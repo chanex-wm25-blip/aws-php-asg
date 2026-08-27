@@ -6,7 +6,7 @@
 set -euo pipefail
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
-SECRET_ID="assignment-db-credentials"
+SECRET_ID="${SECRET_NAME:-shuttle-bus-ticketing-db-credentials}"
 SCHEMA_S3_URI="$1"
 BUCKET_NAME="${2:-}"
 
@@ -17,7 +17,9 @@ DB_HOST=$(echo "$SECRET_JSON" | jq -r .host)
 DB_USER=$(echo "$SECRET_JSON" | jq -r .username)
 DB_PASS=$(echo "$SECRET_JSON" | jq -r .password)
 
-ALREADY_SEEDED=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -N -e \
+MYSQL_ARGS=(--connect-timeout=10 -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS")
+
+ALREADY_SEEDED=$(mysql "${MYSQL_ARGS[@]}" -N -e \
   "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='shuttle_bus_db' AND table_name='users'")
 
 if [ "$ALREADY_SEEDED" -gt 0 ]; then
@@ -25,7 +27,7 @@ if [ "$ALREADY_SEEDED" -gt 0 ]; then
   if [ -n "$BUCKET_NAME" ]; then
     # Fix image paths even if already seeded, in case we're rerunning to fix them
     S3_PREFIX="https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/uploads/"
-    mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "shuttle_bus_db" -e \
+    mysql "${MYSQL_ARGS[@]}" -D "shuttle_bus_db" -e \
       "UPDATE routes SET image_url = REPLACE(image_url, '/uploads/', '${S3_PREFIX}') WHERE image_url LIKE '/uploads/%';"
     echo "Updated sample image URLs to S3."
   fi
@@ -33,12 +35,12 @@ if [ "$ALREADY_SEEDED" -gt 0 ]; then
 fi
 
 aws s3 cp "$SCHEMA_S3_URI" /tmp/schema.sql --region "$AWS_REGION"
-mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" < /tmp/schema.sql
+mysql "${MYSQL_ARGS[@]}" < /tmp/schema.sql
 
 if [ -n "$BUCKET_NAME" ]; then
   # Rewrite local image paths to S3 URLs for the sample routes
   S3_PREFIX="https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/uploads/"
-  mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "shuttle_bus_db" -e \
+  mysql "${MYSQL_ARGS[@]}" -D "shuttle_bus_db" -e \
     "UPDATE routes SET image_url = REPLACE(image_url, '/uploads/', '${S3_PREFIX}') WHERE image_url LIKE '/uploads/%';"
 fi
 
