@@ -160,14 +160,6 @@ jobs:
               "aws s3 cp s3://${{ env.ARTIFACT_BUCKET }}/${{ env.ARTIFACT_PREFIX }}/${{ env.ARTIFACT_NAME }} /tmp/app-deploy.zip",
               "sudo rm -rf /var/www/html/*",
               "sudo unzip -o /tmp/app-deploy.zip -d /var/www/html",
-              "DB_HOST=$(grep \"env\\[DB_HOST\\]\" /etc/php-fpm.d/app-env.conf | awk -F\"= \" \"{print \\$2}\" | tr -d \"\\r\\\"\")",
-              "DB_USER=$(grep \"env\\[DB_USER\\]\" /etc/php-fpm.d/app-env.conf | awk -F\"= \" \"{print \\$2}\" | tr -d \"\\r\\\"\")",
-              "DB_PASS=$(grep \"env\\[DB_PASS\\]\" /etc/php-fpm.d/app-env.conf | awk -F\"= \" \"{print \\$2}\" | tr -d \"\\r\\\"\")",
-              "DB_NAME=$(grep \"env\\[DB_NAME\\]\" /etc/php-fpm.d/app-env.conf | awk -F\"= \" \"{print \\$2}\" | tr -d \"\\r\\\"\")",
-              "S3_BUCKET=$(grep \"env\\[AWS_S3_BUCKET\\]\" /etc/php-fpm.d/app-env.conf | awk -F\"= \" \"{print \\$2}\" | tr -d \"\\r\\\"\")",
-              "S3_REGION=$(grep \"env\\[AWS_S3_REGION\\]\" /etc/php-fpm.d/app-env.conf | awk -F\"= \" \"{print \\$2}\" | tr -d \"\\r\\\"\")",
-              "printf \"DB_HOST=%s\\nDB_USER=%s\\nDB_PASS=%s\\nDB_NAME=%s\\nAWS_S3_BUCKET=%s\\nAWS_S3_REGION=%s\\n\" \"$DB_HOST\" \"$DB_USER\" \"$DB_PASS\" \"$DB_NAME\" \"$S3_BUCKET\" \"$S3_REGION\" | sudo tee /var/www/html/.env > /dev/null",
-              "sudo systemctl restart php-fpm || true",
               "sudo systemctl restart httpd"
             ]}' \
             --query "Command.CommandId" --output text)
