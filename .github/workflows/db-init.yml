@@ -63,15 +63,15 @@ jobs:
           fi
 
           COMMAND_ID=$(aws ssm send-command \
-            --document-name "AWS-RunShellScript" \
-            --instance-ids "$INSTANCE_ID" \
-            --comment "sport-facility-bookings db seed" \
-            --parameters '{"commands":[
-              "aws s3 cp s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCRIPT_KEY }} /tmp/seed-db.sh",
-              "chmod +x /tmp/seed-db.sh",
-              "AWS_REGION=${{ env.AWS_REGION }} /tmp/seed-db.sh s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCHEMA_KEY }} ${{ env.SCHEMA_BUCKET }}"
-            ]}' \
-            --query "Command.CommandId" --output text)
+          --document-name "AWS-RunShellScript" \
+          --instance-ids "$INSTANCE_ID" \
+          --comment "shuttle-bus-ticketing db seed" \
+          --parameters '{"commands":[
+          "aws s3 cp s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCRIPT_KEY }} /tmp/seed-db.sh",
+          "chmod +x /tmp/seed-db.sh",
+          "AWS_REGION=${{ env.AWS_REGION }} DB_HOST=${{ env.DB_HOST }} /tmp/seed-db.sh s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCHEMA_KEY }} ${{ env.SCHEMA_BUCKET }}"
+           ]}' \
+          --query "Command.CommandId" --output text)
 
           aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" || true
 
