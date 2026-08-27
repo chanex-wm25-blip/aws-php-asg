@@ -160,13 +160,13 @@ jobs:
               "aws s3 cp s3://${{ env.ARTIFACT_BUCKET }}/${{ env.ARTIFACT_PREFIX }}/${{ env.ARTIFACT_NAME }} /tmp/app-deploy.zip",
               "sudo rm -rf /var/www/html/*",
               "sudo unzip -o /tmp/app-deploy.zip -d /var/www/html",
-              "DB_HOST=$(grep -oE '\''env\\[DB_HOST\\] = [^ ]+'\'' /etc/php-fpm.d/app-env.conf | awk -F\" '\''{print $2}'\'' | head -1)",
-              "DB_USER=$(grep -oE '\''env\\[DB_USER\\] = [^ ]+'\'' /etc/php-fpm.d/app-env.conf | awk -F\" '\''{print $2}'\'' | head -1)",
-              "DB_PASS=$(grep -oE '\''env\\[DB_PASS\\] = [^ ]+'\'' /etc/php-fpm.d/app-env.conf | awk -F\" '\''{print $2}'\'' | head -1)",
-              "DB_NAME=$(grep -oE '\''env\\[DB_NAME\\] = [^ ]+'\'' /etc/php-fpm.d/app-env.conf | awk -F\" '\''{print $2}'\'' | head -1)",
-              "S3_BUCKET=$(grep -oE '\''env\\[AWS_S3_BUCKET\\] = [^ ]+'\'' /etc/php-fpm.d/app-env.conf | awk -F\" '\''{print $2}'\'' | head -1)",
-              "S3_REGION=$(grep -oE '\''env\\[AWS_S3_REGION\\] = [^ ]+'\'' /etc/php-fpm.d/app-env.conf | awk -F\" '\''{print $2}'\'' | head -1)",
-              "printf '\''DB_HOST=%s\\nDB_USER=%s\\nDB_PASS=%s\\nDB_NAME=%s\\nAWS_S3_BUCKET=%s\\nAWS_S3_REGION=%s\\n'\'' \"$DB_HOST\" \"$DB_USER\" \"$DB_PASS\" \"$DB_NAME\" \"$S3_BUCKET\" \"$S3_REGION\" | sudo tee /var/www/html/.env > /dev/null",
+              "DB_HOST=$(grep \"env\\[DB_HOST\\]\" /etc/php-fpm.d/app-env.conf | awk -F\"= \" \"{print \\$2}\" | tr -d \"\\r\\\"\")",
+              "DB_USER=$(grep \"env\\[DB_USER\\]\" /etc/php-fpm.d/app-env.conf | awk -F\"= \" \"{print \\$2}\" | tr -d \"\\r\\\"\")",
+              "DB_PASS=$(grep \"env\\[DB_PASS\\]\" /etc/php-fpm.d/app-env.conf | awk -F\"= \" \"{print \\$2}\" | tr -d \"\\r\\\"\")",
+              "DB_NAME=$(grep \"env\\[DB_NAME\\]\" /etc/php-fpm.d/app-env.conf | awk -F\"= \" \"{print \\$2}\" | tr -d \"\\r\\\"\")",
+              "S3_BUCKET=$(grep \"env\\[AWS_S3_BUCKET\\]\" /etc/php-fpm.d/app-env.conf | awk -F\"= \" \"{print \\$2}\" | tr -d \"\\r\\\"\")",
+              "S3_REGION=$(grep \"env\\[AWS_S3_REGION\\]\" /etc/php-fpm.d/app-env.conf | awk -F\"= \" \"{print \\$2}\" | tr -d \"\\r\\\"\")",
+              "printf \"DB_HOST=%s\\nDB_USER=%s\\nDB_PASS=%s\\nDB_NAME=%s\\nAWS_S3_BUCKET=%s\\nAWS_S3_REGION=%s\\n\" \"$DB_HOST\" \"$DB_USER\" \"$DB_PASS\" \"$DB_NAME\" \"$S3_BUCKET\" \"$S3_REGION\" | sudo tee /var/www/html/.env > /dev/null",
               "sudo systemctl restart php-fpm || true",
               "sudo systemctl restart httpd"
             ]}' \
@@ -177,13 +177,6 @@ jobs:
             exit 1
           fi
 
-          # Don't reuse an instance-ID list captured before send-command: the
-          # ASG may be mid instance-refresh (e.g. a new AMI picked up by
-          # 'most_recent = true' rolling the launch template), so an instance
-          # that was "running" a moment ago can be gone by the time SSM
-          # resolves the tag-based --targets, causing InvocationDoesNotExist.
-          # Instead, ask SSM which instances the command actually targeted,
-          # giving it a few seconds to register the invocations first.
           TARGET_IDS=""
           for i in $(seq 1 6); do
             TARGET_IDS=$(aws ssm list-command-invocations \
