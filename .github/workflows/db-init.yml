@@ -8,8 +8,10 @@ env:
   APP_TAG: shuttle-bus-ticketing-shuttle-bus-ticketing
   SCHEMA_KEY: db-init/schema.sql
   SCRIPT_KEY: db-init/seed-db.sh
-  SCHEMA_BUCKET: "" # Satisfies the VS Code static linter; populated dynamically at runtime
-  DB_HOST: "shuttle-bus-ticketing-rds.cipaxlgdrf49.us-east-1.rds.amazonaws.com"    
+  SCHEMA_BUCKET: ""
+  DB_HOST: "shuttle-bus-ticketing-rds.cipaxlgdrf49.us-east-1.rds.amazonaws.com"
+  SECRET_NAME: "shuttle-bus-ticketing-db-credentials"
+  DB_NAME: "shuttle_bus_db"    
 
 permissions:
   contents: read
@@ -69,7 +71,7 @@ jobs:
           --parameters '{"commands":[
           "aws s3 cp s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCRIPT_KEY }} /tmp/seed-db.sh",
           "chmod +x /tmp/seed-db.sh",
-          "AWS_REGION=${{ env.AWS_REGION }} DB_HOST=${{ env.DB_HOST }} /tmp/seed-db.sh s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCHEMA_KEY }} ${{ env.SCHEMA_BUCKET }}"
+          "AWS_REGION=${{ env.AWS_REGION }} DB_HOST=${{ env.DB_HOST }} SECRET_NAME=${{ env.SECRET_NAME }} DB_NAME=${{ env.DB_NAME }} /tmp/seed-db.sh s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCHEMA_KEY }} ${{ env.SCHEMA_BUCKET }}"
            ]}' \
           --query "Command.CommandId" --output text)
 
