@@ -9,7 +9,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  APP_TAG: assignment-shuttle-bus-ticketing
+  APP_TAG: shuttle-bus-ticketing-shuttle-bus-ticketing
   SCHEMA_KEY: db-init/schema.sql
   SCRIPT_KEY: db-init/seed-db.sh
 
