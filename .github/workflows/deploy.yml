@@ -81,7 +81,7 @@ jobs:
 
       - name: Package application
         working-directory: ${{ env.APP_DIR }}
-        run: zip -r "../${{ env.ARTIFACT_NAME }}" . -x "uploads/*"
+        run: zip -r "../${{ env.ARTIFACT_NAME }}" . -x "uploads/*" ".env" ".env.*"
 
       - name: Upload artifact to S3
         run: |

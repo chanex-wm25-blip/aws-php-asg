@@ -25,7 +25,7 @@ if (is_readable($envFile)) {
             (str_starts_with($value, "'") && str_ends_with($value, "'"))) {
             $value = substr($value, 1, -1);
         }
-        if (getenv($key) === false) {
+        if (getenv($key) === false && $value !== '') {
             putenv("$key=$value");
         }
     }
