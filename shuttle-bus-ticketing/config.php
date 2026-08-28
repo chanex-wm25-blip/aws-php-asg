@@ -11,8 +11,13 @@
 // (e.g. via Apache SetEnv) takes priority over .env and is left untouched.
 // No web server restart needed - config.php re-reads .env on every request.
 // ============================================================================
-$envFile = __DIR__ . '/.env';
-if (is_readable($envFile)) {
+$envFiles = [__DIR__ . '/.env', '/etc/assignment-db.env'];
+$loadedEnvFiles = [];
+foreach ($envFiles as $envFile) {
+    if (!is_readable($envFile)) {
+        continue;
+    }
+    $loadedEnvFiles[] = $envFile;
     foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
         $line = trim($line);
         if ($line === '' || $line[0] === '#' || strpos($line, '=') === false) {
@@ -70,6 +75,15 @@ $user   = getenv('DB_USER') ?: ($_SERVER['DB_USER'] ?? 'root');
 $pass   = getenv('DB_PASS') ?: ($_SERVER['DB_PASS'] ?? '');
 $dbname = getenv('DB_NAME') ?: ($_SERVER['DB_NAME'] ?? 'shuttle_bus_db');
 
+error_log(sprintf(
+    'Database configuration: host=%s user=%s database=%s password_present=%s env_files=%s',
+    $host,
+    $user,
+    $dbname,
+    $pass !== '' ? 'true' : 'false',
+    $loadedEnvFiles ? implode(',', $loadedEnvFiles) : 'none'
+));
+
 // @-suppressed: even with MYSQLI_REPORT_OFF (no exception), a failed
 // connection still emits a PHP-level warning straight into the response
 // body. With display_errors on, that warning is output before the
@@ -84,7 +98,8 @@ if ($conn->connect_error) {
     // otherwise a target group would keep routing real traffic to an
     // instance that can't reach its database.
     http_response_code(500);
-    die('Database connection failed: ' . $conn->connect_error);
+    error_log('Database connection failed: ' . $conn->connect_error);
+    die('Database connection failed. Check the server error log.');
 }
 
 // Keep MySQL's NOW()/CURRENT_TIMESTAMP in step with the PHP timezone above -

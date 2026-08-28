@@ -158,7 +158,7 @@ jobs:
             --parameters '{"commands":[
               "cloud-init status --wait",
               "aws s3 cp s3://${{ env.ARTIFACT_BUCKET }}/${{ env.ARTIFACT_PREFIX }}/${{ env.ARTIFACT_NAME }} /tmp/app-deploy.zip",
-              "sudo rm -rf /var/www/html/*",
+              "sudo find /var/www/html -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +",
               "sudo unzip -o /tmp/app-deploy.zip -d /var/www/html",
               "sudo systemctl restart httpd"
             ]}' \

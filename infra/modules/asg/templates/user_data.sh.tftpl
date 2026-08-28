@@ -1,5 +1,8 @@
 #!/bin/bash
-set -euxo pipefail
+set -euo pipefail
+
+exec > >(tee -a /var/log/assignment-bootstrap.log | logger -t assignment-bootstrap -s 2>/dev/console) 2>&1
+echo "Bootstrap started at $(date -Is)"
 
 dnf update -y
 dnf install -y httpd php php-mysqlnd php-cli jq unzip mariadb105
@@ -10,6 +13,7 @@ SECRET_JSON=$(aws secretsmanager get-secret-value \
   --secret-id "${secret_arn}" \
   --region "${aws_region}" \
   --query SecretString --output text)
+echo "Secrets Manager response received"
 
 DB_HOST=$(echo "$SECRET_JSON" | jq -r .host)
 DB_USER=$(echo "$SECRET_JSON" | jq -r .username)
@@ -20,6 +24,7 @@ if [[ -z "$DB_HOST" || "$DB_HOST" == "null" || -z "$DB_USER" || "$DB_USER" == "n
   echo "Database secret is missing host, username, or dbname" >&2
   exit 1
 fi
+echo "Database settings parsed: host=$DB_HOST user=$DB_USER database=$DB_NAME password_present=$([[ -n "$DB_PASS" && "$DB_PASS" != "null" ]] && echo true || echo false)"
 
 cat <<EOF > /etc/httpd/conf.d/assignment-env.conf
 SetEnv DB_HOST "$DB_HOST"
@@ -28,6 +33,15 @@ SetEnv DB_PASS "$DB_PASS"
 SetEnv DB_NAME "$DB_NAME"
 SetEnv AWS_S3_BUCKET "${artifact_bucket}"
 SetEnv AWS_S3_REGION "${aws_region}"
+EOF
+
+cat <<EOF | install -o root -g apache -m 0640 /dev/stdin /etc/assignment-db.env
+DB_HOST=$DB_HOST
+DB_USER=$DB_USER
+DB_PASS=$DB_PASS
+DB_NAME=$DB_NAME
+AWS_S3_BUCKET=${artifact_bucket}
+AWS_S3_REGION=${aws_region}
 EOF
 
 mkdir -p /var/www/html
@@ -39,7 +53,7 @@ mkdir -p /var/www/html
 # only before any deploy has ever run.
 if aws s3api head-object --bucket "${artifact_bucket}" --key "${artifact_key}" --region "${aws_region}" >/dev/null 2>&1; then
   aws s3 cp "s3://${artifact_bucket}/${artifact_key}" /tmp/assignment-app.zip --region "${aws_region}"
-  rm -rf /var/www/html/*
+  find /var/www/html -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
   unzip -o /tmp/assignment-app.zip -d /var/www/html
 else
   echo "<?php http_response_code(200); echo 'assignment-shuttle-bus-ticketing: bootstrapped, waiting for first deploy.';" \
@@ -52,3 +66,4 @@ fi
 
 systemctl enable httpd
 systemctl restart httpd
+echo "Bootstrap completed at $(date -Is)"

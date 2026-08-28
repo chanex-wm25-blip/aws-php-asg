@@ -1,20 +1,47 @@
 <?php
+error_log(sprintf(
+    'Index request started: method=%s path=%s remote=%s search_present=%s',
+    $_SERVER['REQUEST_METHOD'] ?? 'unknown',
+    parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/',
+    $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+    isset($_GET['q']) && trim((string)$_GET['q']) !== '' ? 'true' : 'false'
+));
+
 require 'config.php';
 require 'auth.php';
 require 'helpers.php';
+
+error_log('Index database connection is ready');
 
 $search = trim($_GET['q'] ?? '');
 
 if ($search !== '') {
     $stmt = $conn->prepare('SELECT * FROM routes WHERE route_name LIKE ? ORDER BY departure_time');
+    if (!$stmt) {
+        error_log('Index route search prepare failed: ' . $conn->error);
+        http_response_code(500);
+        die('Unable to load routes. Check the server error log.');
+    }
     $likeSearch = '%' . $search . '%';
     $stmt->bind_param('s', $likeSearch);
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        error_log('Index route search execute failed: ' . $stmt->error);
+        http_response_code(500);
+        die('Unable to load routes. Check the server error log.');
+    }
     $routes = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 } else {
-    $routes = $conn->query('SELECT * FROM routes ORDER BY departure_time')->fetch_all(MYSQLI_ASSOC);
+    $routeResult = $conn->query('SELECT * FROM routes ORDER BY departure_time');
+    if (!$routeResult) {
+        error_log('Index route query failed: ' . $conn->error);
+        http_response_code(500);
+        die('Unable to load routes. Check the server error log.');
+    }
+    $routes = $routeResult->fetch_all(MYSQLI_ASSOC);
 }
+
+error_log('Index routes loaded: count=' . count($routes));
 
 $myTickets = [];
 if ($uid = current_user_id()) {
