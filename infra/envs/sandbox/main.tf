@@ -68,7 +68,7 @@ module "alb" {
 }
 
 module "asg" {
-  source = "../../modules/asg"
+  source     = "../../modules/asg"
   depends_on = [module.secrets]
 
   name_prefix           = var.name_prefix
