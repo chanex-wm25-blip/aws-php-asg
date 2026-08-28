@@ -16,13 +16,16 @@ DB_USER=$(echo "$SECRET_JSON" | jq -r .username)
 DB_PASS=$(echo "$SECRET_JSON" | jq -r .password)
 DB_NAME=$(echo "$SECRET_JSON" | jq -r .dbname)
 
+if [[ -z "$DB_HOST" || "$DB_HOST" == "null" || -z "$DB_USER" || "$DB_USER" == "null" || -z "$DB_NAME" || "$DB_NAME" == "null" ]]; then
+  echo "Database secret is missing host, username, or dbname" >&2
+  exit 1
+fi
+
 cat <<EOF > /etc/httpd/conf.d/assignment-env.conf
 SetEnv DB_HOST "$DB_HOST"
 SetEnv DB_USER "$DB_USER"
 SetEnv DB_PASS "$DB_PASS"
 SetEnv DB_NAME "$DB_NAME"
-SetEnv S3_BUCKET "${artifact_bucket}"
-SetEnv AWS_REGION "${aws_region}"
 SetEnv AWS_S3_BUCKET "${artifact_bucket}"
 SetEnv AWS_S3_REGION "${aws_region}"
 EOF
