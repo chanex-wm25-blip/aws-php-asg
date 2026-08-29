@@ -133,6 +133,7 @@ require 'partials/header.php';
 <td><?= (int)$t['seat_quantity'] ?></td>
 <td><?= number_format($t['total_price'], 2) ?></td>
 <td>
+<a class="btn btn-secondary btn-small" href="ticket_detail.php?id=<?= (int)$t['id'] ?>">View</a>
 <a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$t['id'] ?>">Edit</a>
 <form action="delete.php" method="post" style="display:inline" onsubmit="return confirm('Cancel this ticket?');">
 <!-- Added CSRF Token protection for cancellation -->
