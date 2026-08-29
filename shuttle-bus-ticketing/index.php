@@ -135,6 +135,8 @@ require 'partials/header.php';
 <td>
 <a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$t['id'] ?>">Edit</a>
 <form action="delete.php" method="post" style="display:inline" onsubmit="return confirm('Cancel this ticket?');">
+<!-- Added CSRF Token protection for cancellation -->
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf_token()) ?>">
 <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
 <button type="submit" class="btn-small btn-danger">Cancel</button>
 </form>
