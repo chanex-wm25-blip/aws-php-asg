@@ -29,14 +29,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $conn->begin_transaction();
 
         // 2. Enforce per-user booking limit (Maximum 2 bookings per date per account)
-        $stmtLimit = $conn->prepare('SELECT COUNT(*) AS user_bookings FROM tickets WHERE user_id = ? AND travel_date = ? FOR UPDATE');
+        $stmtLimit = $conn->prepare('SELECT COALESCE(SUM(seat_quantity), 0) AS total_user_seats FROM tickets WHERE user_id = ? AND travel_date = ? FOR UPDATE');
         $stmtLimit->bind_param('is', $uid, $travel_date);
         $stmtLimit->execute();
-        $userBookings = (int)$stmtLimit->get_result()->fetch_assoc()['user_bookings'];
+        $currentSeats = (int)$stmtLimit->get_result()->fetch_assoc()['total_user_seats'];
         $stmtLimit->close();
 
-        if ($userBookings >= 2) {
-            $error = 'You have reached the limit of 2 bookings for this date across your account.';
+        if ($currentSeats + $seat_quantity > 3) {
+            $remaining = 3 - $currentSeats;
+            $error = $remaining > 0 
+                ? "You can only book $remaining more seat(s) for this date (Account Limit: 3 seats total per date)."
+                : "You have reached your maximum limit of 3 booked seats for this date.";
             $conn->rollback();
         } else {
             $stmt = $conn->prepare('SELECT price, total_seats, departure_time FROM routes WHERE id = ? FOR UPDATE');
