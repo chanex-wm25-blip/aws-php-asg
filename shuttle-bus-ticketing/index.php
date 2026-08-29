@@ -127,12 +127,15 @@ require 'partials/header.php';
 <tr><th>Route</th><th>Travel Date</th><th>Departs</th><th>Seats</th><th>Total (RM)</th><th>Actions</th></tr>
 <?php foreach ($myTickets as $t): ?>
 <tr>
-<td><?= htmlspecialchars($t['route_name']) ?></td>
-<td><?= htmlspecialchars($t['travel_date']) ?></td>
-<td><?= htmlspecialchars($t['departure_time']) ?></td>
-<td><?= (int)$t['seat_quantity'] ?></td>
-<td><?= number_format($t['total_price'], 2) ?></td>
 <td>
+<a class="btn btn-secondary btn-small" href="ticket_detail.php?id=<?= (int)$t['id'] ?>">View</a>
+<a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$t['id'] ?>">Edit</a>
+<form action="delete.php" method="post" style="display:inline" onsubmit="return confirm('Cancel this ticket?');">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf_token()) ?>">
+<input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
+<button type="submit" class="btn-small btn-danger">Cancel</button>
+</form>
+</td>
 <a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$t['id'] ?>">Edit</a>
 <form action="delete.php" method="post" style="display:inline" onsubmit="return confirm('Cancel this ticket?');">
 <!-- Added CSRF Token protection for cancellation -->
