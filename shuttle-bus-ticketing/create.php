@@ -32,6 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $uid = (int)current_user_id();
 
         // 2. Enforce per-user seat limit (Maximum 3 seats total per user per date)
+        $stmtUserLock = $conn->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE');
+        $stmtUserLock->bind_param('i', $uid);
+        $stmtUserLock->execute();
+        $stmtUserLock->close();
+
         $stmtLimit = $conn->prepare('SELECT COALESCE(SUM(seat_quantity), 0) AS total_user_seats FROM tickets WHERE user_id = ? AND travel_date = ?');
         $stmtLimit->bind_param('is', $uid, $travel_date);
         $stmtLimit->execute();
