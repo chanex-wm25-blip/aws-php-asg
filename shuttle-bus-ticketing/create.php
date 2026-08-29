@@ -9,6 +9,11 @@ $selectedRoute = (int)($_GET['route_id'] ?? 0);
 $selectedDate  = $_GET['travel_date'] ?? date('Y-m-d');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // 1. Verify CSRF Token
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die('CSRF token validation failed.');
+    }
+
     $route_id      = (int)($_POST['route_id'] ?? 0);
     $travel_date   = $_POST['travel_date'] ?? '';
     $seat_quantity = (int)($_POST['seat_quantity'] ?? 0);
@@ -23,41 +28,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $conn->begin_transaction();
 
-        $stmt = $conn->prepare('SELECT price, total_seats, departure_time FROM routes WHERE id = ? FOR UPDATE');
-        $stmt->bind_param('i', $route_id);
-        $stmt->execute();
-        $route = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
+        // 2. Enforce per-user booking limit (Maximum 2 bookings per date per account)
+        $stmtLimit = $conn->prepare('SELECT COUNT(*) AS user_bookings FROM tickets WHERE user_id = ? AND travel_date = ? FOR UPDATE');
+        $stmtLimit->bind_param('is', $uid, $travel_date);
+        $stmtLimit->execute();
+        $userBookings = (int)$stmtLimit->get_result()->fetch_assoc()['user_bookings'];
+        $stmtLimit->close();
 
-        if (!$route) {
-            $error = 'Route not found.';
-            $conn->rollback();
-        } elseif (is_departure_in_past($travel_date, $route['departure_time'])) {
-            $error = 'This route has already departed today. Please choose a later route or date.';
+        if ($userBookings >= 2) {
+            $error = 'You have reached the limit of 2 bookings for this date across your account.';
             $conn->rollback();
         } else {
-            $stmt = $conn->prepare('SELECT COALESCE(SUM(seat_quantity), 0) AS booked FROM tickets WHERE route_id = ? AND travel_date = ?');
-            $stmt->bind_param('is', $route_id, $travel_date);
+            $stmt = $conn->prepare('SELECT price, total_seats, departure_time FROM routes WHERE id = ? FOR UPDATE');
+            $stmt->bind_param('i', $route_id);
             $stmt->execute();
-            $booked = (int)$stmt->get_result()->fetch_assoc()['booked'];
+            $route = $stmt->get_result()->fetch_assoc();
             $stmt->close();
 
-            if ($booked + $seat_quantity > $route['total_seats']) {
-                $available = $route['total_seats'] - $booked;
-                $error = $available > 0
-                    ? "Only $available seat(s) remaining on this route for that date."
-                    : 'This route is fully booked for that date.';
+            if (!$route) {
+                $error = 'Route not found.';
+                $conn->rollback();
+            } elseif (is_departure_in_past($travel_date, $route['departure_time'])) {
+                $error = 'This route has already departed today. Please choose a later route or date.';
                 $conn->rollback();
             } else {
-                $total_price = $route['price'] * $seat_quantity;
-
-                $stmt = $conn->prepare('INSERT INTO tickets (user_id, route_id, travel_date, seat_quantity, total_price) VALUES (?, ?, ?, ?, ?)');
-                $stmt->bind_param('iisid', $uid, $route_id, $travel_date, $seat_quantity, $total_price);
+                $stmt = $conn->prepare('SELECT COALESCE(SUM(seat_quantity), 0) AS booked FROM tickets WHERE route_id = ? AND travel_date = ?');
+                $stmt->bind_param('is', $route_id, $travel_date);
                 $stmt->execute();
+                $booked = (int)$stmt->get_result()->fetch_assoc()['booked'];
                 $stmt->close();
-                $conn->commit();
-                header('Location: index.php');
-                exit;
+
+                if ($booked + $seat_quantity > $route['total_seats']) {
+                    $available = $route['total_seats'] - $booked;
+                    $error = $available > 0
+                        ? "Only $available seat(s) remaining on this route for that date."
+                        : 'This route is fully booked for that date.';
+                    $conn->rollback();
+                } else {
+                    $total_price = $route['price'] * $seat_quantity;
+
+                    $stmt = $conn->prepare('INSERT INTO tickets (user_id, route_id, travel_date, seat_quantity, total_price) VALUES (?, ?, ?, ?, ?)');
+                    $stmt->bind_param('iisid', $uid, $route_id, $travel_date, $seat_quantity, $total_price);
+                    $stmt->execute();
+                    $stmt->close();
+                    $conn->commit();
+                    header('Location: index.php');
+                    exit;
+                }
             }
         }
     }
@@ -72,6 +89,9 @@ require 'partials/header.php';
 <h1>Book a Shuttle Ticket</h1>
 <?php if ($error): ?><p class="alert alert-error"><?= htmlspecialchars($error) ?></p><?php endif; ?>
 <form method="post" id="ticket-form">
+<!-- 3. Hidden CSRF Token Field -->
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf_token()) ?>">
+
 <label>Route
 <select name="route_id" id="route-select" required>
 <?php while ($r = $routes->fetch_assoc()): ?>
