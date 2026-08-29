@@ -21,8 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $selectedRoute = $route_id;
     $selectedDate  = $travel_date;
 
-    if ($travel_date === '' || $seat_quantity < 1) {
-        $error = 'Please choose a travel date and a valid number of seats.';
+    if ($travel_date === '' || $seat_quantity < 1 || $seat_quantity > 3) {
+        $error = 'Please choose a travel date and 1 to 3 seats.';
     } elseif ($travel_date < date('Y-m-d')) {
         $error = 'Travel date cannot be in the past.';
     } else {
@@ -104,7 +104,7 @@ require 'partials/header.php';
 </label>
 <label>Travel Date <input type="date" name="travel_date" id="travel-date" value="<?= htmlspecialchars($selectedDate) ?>" min="<?= date('Y-m-d') ?>" required></label>
 <p class="form-hint" id="route-availability-hint"></p>
-<label>Number of Seats <input type="number" name="seat_quantity" min="1" value="1" required></label>
+<label>Number of Seats <input type="number" name="seat_quantity" min="1" max="3" value="1" required></label>
 <button type="submit">Book Ticket</button>
 </form>
 <script>
