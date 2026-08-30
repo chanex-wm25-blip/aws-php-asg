@@ -317,6 +317,30 @@ function s3_response_status($responseHeaders) {
     return 0;
 }
 
+function send_sns_alert($subject, $message) {
+    $topicArn = getenv('SNS_TOPIC_ARN') ?: (defined('SNS_TOPIC_ARN') ? SNS_TOPIC_ARN : '');
+    if ($topicArn === '') {
+        return false;
+    }
+
+    $region = getenv('AWS_REGION') ?: AWS_S3_REGION;
+    $escapedSubject = escapeshellarg((string)$subject);
+    $escapedMessage = escapeshellarg((string)$message);
+    $escapedArn = escapeshellarg((string)$topicArn);
+    $escapedRegion = escapeshellarg((string)$region);
+
+    $cmd = sprintf(
+        'aws sns publish --topic-arn %s --subject %s --message %s --region %s 2>/dev/null',
+        $escapedArn,
+        $escapedSubject,
+        $escapedMessage,
+        $escapedRegion
+    );
+
+    $output = shell_exec($cmd);
+    return $output !== null && $output !== '';
+}
+
 function generate_csrf_token(){
     if (session_status() === PHP_SESSION_NONE) {
         session_start();

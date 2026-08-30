@@ -146,3 +146,4 @@ define('AWS_S3_REGION', getenv('AWS_S3_REGION') ?: (getenv('AWS_REGION') ?: 'us-
 define('AWS_ACCESS_KEY_ID', getenv('AWS_ACCESS_KEY_ID') ?: '');
 define('AWS_SECRET_ACCESS_KEY', getenv('AWS_SECRET_ACCESS_KEY') ?: '');
 define('AWS_SESSION_TOKEN', getenv('AWS_SESSION_TOKEN') ?: '');
+define('SNS_TOPIC_ARN', getenv('SNS_TOPIC_ARN') ?: '');

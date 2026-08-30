@@ -49,6 +49,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = $remaining > 0 
                 ? "You can only book $remaining more seat(s) for this date (Account Limit: 3 seats total per date)."
                 : "You have already reached your maximum limit of 3 booked seats for this date.";
+            send_sns_alert(
+                'Booking failed: user limit reached',
+                sprintf(
+                    'User ID %d attempted to book %d seat(s) on %s but exceeded the daily limit. Current seats: %d',
+                    $uid,
+                    $seat_quantity,
+                    $travel_date,
+                    $currentSeats
+                )
+            );
             $conn->rollback();
         } else {
             $stmt = $conn->prepare('SELECT price, total_seats, departure_time FROM routes WHERE id = ? FOR UPDATE');
@@ -59,9 +69,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$route) {
                 $error = 'Route not found.';
+                send_sns_alert('Booking failed: route not found', sprintf('User ID %d attempted booking for route ID %d on %s.', $uid, $route_id, $travel_date));
                 $conn->rollback();
             } elseif (is_departure_in_past($travel_date, $route['departure_time'])) {
                 $error = 'This route has already departed today. Please choose a later route or date.';
+                send_sns_alert('Booking failed: route already departed', sprintf('User ID %d attempted booking for route ID %d on %s after departure time %s.', $uid, $route_id, $travel_date, $route['departure_time']));
                 $conn->rollback();
             } else {
                 $stmt = $conn->prepare('SELECT COALESCE(SUM(seat_quantity), 0) AS booked FROM tickets WHERE route_id = ? AND travel_date = ? FOR UPDATE');
@@ -75,6 +87,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = $available > 0
                         ? "Only $available seat(s) remaining on this route for that date."
                         : 'This route is fully booked for that date.';
+                    send_sns_alert(
+                        'Booking failed: route full',
+                        sprintf(
+                            'User ID %d attempted to book %d seat(s) for route ID %d on %s. Available seats: %d',
+                            $uid,
+                            $seat_quantity,
+                            $route_id,
+                            $travel_date,
+                            $available
+                        )
+                    );
                     $conn->rollback();
                 } else {
                     $total_price = $route['price'] * $seat_quantity;
