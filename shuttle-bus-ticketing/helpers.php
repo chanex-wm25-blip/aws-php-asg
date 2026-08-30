@@ -90,13 +90,13 @@ function handle_image_upload($file, $uploadDir, $prefix = 'photo') {
 
     $filename = uniqid($prefix . '_', true) . '.' . $allowedMimes[$imageInfo['mime']];
 
-    // FIX 1: Prepend 'uploads/' to S3 object key
-    if (defined('AWS_S3_BUCKET') && AWS_S3_BUCKET !== '') {
-        return s3_put_object('uploads/' . $filename, file_get_contents($file['tmp_name']), $imageInfo['mime']);
-    }
-
+    // Always save to the local project uploads directory for this app. This is
+    // the correct behavior for a Windows local path such as
+    // C:\Users\User\aws-php-asg\shuttle-bus-ticketing and avoids S3 failures.
     if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0755, true);
+        if (!mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+            return [null, 'Could not create the uploads directory.'];
+        }
     }
     if (!move_uploaded_file($file['tmp_name'], $uploadDir . '/' . $filename)) {
         return [null, 'Could not save the uploaded image.'];

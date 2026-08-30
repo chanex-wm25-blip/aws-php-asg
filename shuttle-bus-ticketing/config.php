@@ -139,10 +139,10 @@ $conn->query("SET time_zone = '+08:00'");
 //         fresh values from "AWS Details" and update .env (no restart
 //         needed).
 // ============================================================================
-// Default to local uploads so the app works out-of-the-box in a normal PHP
-// environment. Set AWS_S3_BUCKET explicitly if you truly want S3 storage.
-define('AWS_S3_BUCKET', getenv('AWS_S3_BUCKET') ?: (getenv('S3_BUCKET') ?: ''));
-define('AWS_S3_REGION', getenv('AWS_S3_REGION') ?: (getenv('AWS_REGION') ?: 'us-east-1'));
-define('AWS_ACCESS_KEY_ID', getenv('AWS_ACCESS_KEY_ID') ?: '');
-define('AWS_SECRET_ACCESS_KEY', getenv('AWS_SECRET_ACCESS_KEY') ?: '');
-define('AWS_SESSION_TOKEN', getenv('AWS_SESSION_TOKEN') ?: '');
+// For this project, keep uploads local to the app path so they are saved under
+// the project's uploads/ folder and remain visible without any S3 setup.
+define('AWS_S3_BUCKET', '');
+define('AWS_S3_REGION', 'us-east-1');
+define('AWS_ACCESS_KEY_ID', '');
+define('AWS_SECRET_ACCESS_KEY', '');
+define('AWS_SESSION_TOKEN', '');
