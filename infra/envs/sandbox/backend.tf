@@ -2,12 +2,13 @@
 # section 4) before this backend can be used - Terraform can't create the
 # backend it's about to store its own state in.
 #
-# IMPORTANT: S3 bucket names are GLOBALLY unique. "assignment-tfstate" is almost
-# certainly already taken by someone else, which would make bootstrap fail. A
-# backend block cannot use variables/interpolation, so replace the bucket name
-# below with your own unique one (e.g. assignment-tfstate-<your-account-id>) and
-# create it with that same name in the bootstrap step. The DynamoDB lock table
-# name is only account-scoped, so "assignment-tf-lock" is fine as-is.
+# IMPORTANT: S3 bucket names are GLOBALLY unique. "shuttlebus-tfstate" is a
+# sensible base name, but to avoid collisions you should suffix it with your AWS
+# account ID (for example: shuttlebus-tfstate-<your-account-id>). A backend
+# block cannot use variables/interpolation, so replace the bucket name below
+# with your own unique one and create it with that same name in the bootstrap
+# step. The DynamoDB lock table name is only account-scoped, so
+# "shuttlebusticket-tf-lock" is fine as-is.
 terraform {
   backend "s3" {
     bucket         = "shuttlebus-tfstate-609329194143"

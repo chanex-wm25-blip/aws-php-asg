@@ -150,8 +150,8 @@ infra/
     asg/                # launch template (+ user-data), assignment-asg, scaling policy
   envs/
     sandbox/
-      backend.tf         # s3 backend: bucket=assignment-tfstate, key=sandbox/terraform.tfstate,
-                         # region=us-east-1, dynamodb_table=assignment-tf-lock
+      backend.tf         # s3 backend: bucket=shuttlebus-tfstate-<account-id>, key=sandbox/terraform.tfstate,
+                         # region=us-east-1, dynamodb_table=shuttlebusticket-tf-lock
       providers.tf       # terraform + aws/random provider versions
       main.tf  variables.tf  outputs.tf  terraform.tfvars
 ```
@@ -160,24 +160,23 @@ This has already been scaffolded in this repo — see the actual files under [`i
 
 ### One-time manual state bootstrap (run once, locally, before any `terraform apply`)
 
-> **S3 bucket names are globally unique across all AWS accounts.** `assignment-tfstate` is very likely
-> already taken, so pick a unique name — the commands below suffix your account ID. Use that **same** name in
-> [`backend.tf`](envs/sandbox/backend.tf) (it can't use variables, so it's hardcoded there). The uploads
-> bucket (`assignment-s3-uploads`) is handled automatically — Terraform suffixes the account ID for you.
+> **S3 bucket names are globally unique across all AWS accounts.** Use a unique bucket name such as
+> `shuttlebus-tfstate-${ACCOUNT_ID}`. Use that **same** name in [`backend.tf`](envs/sandbox/backend.tf)
+> (it can't use variables, so it's hardcoded there). The uploads bucket is handled automatically by Terraform.
 
 ```
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-STATE_BUCKET="assignment-tfstate-${ACCOUNT_ID}"
+STATE_BUCKET="shuttlebus-tfstate-${ACCOUNT_ID}"
 
 aws s3api create-bucket --bucket "$STATE_BUCKET" --region us-east-1
 aws s3api put-bucket-versioning --bucket "$STATE_BUCKET" --versioning-configuration Status=Enabled
-aws dynamodb create-table --table-name assignment-tf-lock \
+aws dynamodb create-table --table-name shuttlebusticket-tf-lock \
   --attribute-definitions AttributeName=LockID,AttributeType=S \
   --key-schema AttributeName=LockID,KeyType=HASH \
   --billing-mode PAY_PER_REQUEST
 ```
 
-Then set `bucket = "assignment-tfstate-<your-account-id>"` in [`backend.tf`](envs/sandbox/backend.tf) to match.
+Then set `bucket = "shuttlebus-tfstate-<your-account-id>"` in [`backend.tf`](envs/sandbox/backend.tf) to match.
 
 ## 5. GitHub Actions CI/CD
 
