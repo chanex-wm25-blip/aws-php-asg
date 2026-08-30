@@ -4,7 +4,7 @@ require '../auth.php';
 require_admin();
 
 $tickets = $conn->query('
-    SELECT t.id, r.route_name, t.travel_date, t.seat_quantity, t.total_price, t.status, u.name AS user_name, u.email AS user_email
+    SELECT t.id, r.route_name, t.travel_date, t.seat_quantity, t.total_price, COALESCE(t.status, "pending") AS status, u.name AS user_name, u.email AS user_email
     FROM tickets t
     JOIN routes r ON r.id = t.route_id
     JOIN users u ON u.id = t.user_id
@@ -36,10 +36,10 @@ require 'partials/header.php';
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf_token()) ?>">
 <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
 <select name="status" onchange="this.form.submit()" style="padding: 4px 8px; border-radius: 4px;">
-<option value="pending" <?= ($t['status'] ?? '') === 'pending' ? 'selected' : '' ?>>Pending</option>
-<option value="confirmed" <?= ($t['status'] ?? '') === 'confirmed' ? 'selected' : '' ?>>Confirmed</option>
-<option value="done" <?= ($t['status'] ?? '') === 'done' ? 'selected' : '' ?>>Done</option>
-<option value="cancelled" <?= ($t['status'] ?? '') === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
+<option value="pending" <?= $t['status'] === 'pending' ? 'selected' : '' ?>>Pending</option>
+<option value="confirmed" <?= $t['status'] === 'confirmed' ? 'selected' : '' ?>>Confirmed</option>
+<option value="done" <?= $t['status'] === 'done' ? 'selected' : '' ?>>Done</option>
+<option value="cancelled" <?= $t['status'] === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
 </select>
 </form>
 </td>
