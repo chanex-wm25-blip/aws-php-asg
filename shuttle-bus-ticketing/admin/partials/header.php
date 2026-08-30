@@ -25,9 +25,8 @@
 <a href="testimonials.php" class="<?= $currentPage === 'testimonials.php' ? 'active' : '' ?>">Testimonials</a>
 <a href="messages.php" class="<?= $currentPage === 'messages.php' ? 'active' : '' ?>">Messages</a>
 <a href="users.php" class="<?= $currentPage === 'users.php' ? 'active' : '' ?>">Users</a>
-<a href="dashboard.php">Dashboard</a>
-<a href="tickets.php">Tickets</a>
-<a href="admin_chat.php">Support Chat</a>
+<a href="dashboard.php" class="<?= $currentPage === 'dashboard.php' ? 'active' : '' ?>">Dashboard</a>
+<a href="admin_chat.php" class="<?= $currentPage === 'admin_chat.php' ? 'active' : '' ?>">Support Chat</a>
 <a href="../logout.php">Logout</a>
 <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">&#9728;</button>
 </div>
