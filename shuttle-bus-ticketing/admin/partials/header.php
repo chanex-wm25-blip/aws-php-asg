@@ -27,6 +27,9 @@
 <a href="users.php" class="<?= $currentPage === 'users.php' ? 'active' : '' ?>">Users</a>
 <a href="../logout.php">Logout</a>
 <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">&#9728;</button>
+<a href="dashboard.php">Dashboard</a>
+<a href="tickets.php">Tickets</a>
+<a href="admin_chat.php">Support Chat</a>
 </div>
 </nav>
 <main class="container">
