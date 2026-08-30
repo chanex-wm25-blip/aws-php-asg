@@ -21,22 +21,13 @@ function tarumt_faculties() {
 }
 
 // True if a route's departure time (e.g. "08:00") on the given date has
-// already passed relative to now - a route scheduled for today whose bus
-// already left can't be booked for today (a future date is never "in the
-// past" no matter the departure time).
+// already passed relative to now.
 function is_departure_in_past($date, $departureTime) {
     $depart = strtotime($date . ' ' . $departureTime);
     return $depart !== false && $depart < time();
 }
 
 // Falls back to a neutral placeholder until an admin uploads a real photo.
-//
-// An S3-stored photo's image_url is already a full https:// URL - returned
-// as-is. A local-disk photo's image_url is root-relative ("/uploads/xxx.jpg")
-// and gets turned into a path relative to the current script instead, because
-// this app may be hosted as a subdirectory alongside sibling apps (not at the
-// web server's document root) - a leading "/uploads/..." would then resolve
-// to the wrong app's uploads folder (or nowhere).
 function entity_image_url($row) {
     if (!empty($row['image_url'])) {
         $url = $row['image_url'];
@@ -49,7 +40,6 @@ function entity_image_url($row) {
         // 2. If S3 bucket is defined, construct full S3 URL with encoded spaces
         if (defined('AWS_S3_BUCKET') && AWS_S3_BUCKET !== '') {
             $relative = ltrim($url, '/');
-            // Encode spaces and special characters for S3 URL
             $s3Path = implode('/', array_map('rawurlencode', explode('/', $relative)));
             return 'https://' . AWS_S3_BUCKET . '.s3.' . AWS_S3_REGION . '.amazonaws.com/' . $s3Path;
         }
@@ -71,11 +61,7 @@ function entity_image_url($row) {
     return 'data:image/svg+xml;base64,' . base64_encode($svg);
 }
 
-// Validates an uploaded photo, then stores it either on S3 (if AWS_S3_BUCKET
-// is configured, see config.php) or on local disk (the default). Returns
-// [webPath, error] - webPath is either a full S3 https:// URL or a
-// root-relative "/uploads/xxx.jpg" path, or null if no file was uploaded or
-// it failed.
+// Validates an uploaded photo, then stores it either on S3 or local disk.
 function handle_image_upload($file, $uploadDir, $prefix = 'photo') {
     if (!isset($file) || $file['error'] === UPLOAD_ERR_NO_FILE) {
         return [null, null];
@@ -87,8 +73,6 @@ function handle_image_upload($file, $uploadDir, $prefix = 'photo') {
         return [null, 'Image must be smaller than 5MB.'];
     }
 
-    // Check the actual file content, not just the extension/MIME the browser
-    // claims, so a renamed .php file can't slip through.
     $imageInfo = getimagesize($file['tmp_name']);
     if ($imageInfo === false) {
         return [null, 'The uploaded file is not a valid image.'];
@@ -106,8 +90,9 @@ function handle_image_upload($file, $uploadDir, $prefix = 'photo') {
 
     $filename = uniqid($prefix . '_', true) . '.' . $allowedMimes[$imageInfo['mime']];
 
-    if (AWS_S3_BUCKET !== '') {
-        return s3_put_object($filename, file_get_contents($file['tmp_name']), $imageInfo['mime']);
+    // FIX 1: Prepend 'uploads/' to S3 object key
+    if (defined('AWS_S3_BUCKET') && AWS_S3_BUCKET !== '') {
+        return s3_put_object('uploads/' . $filename, file_get_contents($file['tmp_name']), $imageInfo['mime']);
     }
 
     if (!is_dir($uploadDir)) {
@@ -120,8 +105,7 @@ function handle_image_upload($file, $uploadDir, $prefix = 'photo') {
     return ['/uploads/' . $filename, null];
 }
 
-// Deletes a previously uploaded image, from S3 or local disk depending on
-// which one image_url points at.
+// Deletes a previously uploaded image.
 function delete_image_file($imageUrl, $uploadDir) {
     if (!$imageUrl) {
         return;
@@ -139,14 +123,9 @@ function delete_image_file($imageUrl, $uploadDir) {
 }
 
 // ============================================================================
-// S3 upload support (Signature Version 4, no AWS SDK/Composer dependency).
-// Only used when AWS_S3_BUCKET is set in config.php - local disk is the
-// default and needs none of this. The signing logic here is verified
-// byte-for-byte against AWS's own published SigV4 test suite.
+// S3 Signature Version 4 Helper Functions
 // ============================================================================
 
-// Builds the canonical request + the list of header names that were signed,
-// per the SigV4 spec: https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
 function s3_canonical_request($method, $path, $headers, $payloadHash) {
     $sorted = $headers;
     ksort($sorted);
@@ -159,9 +138,7 @@ function s3_canonical_request($method, $path, $headers, $payloadHash) {
     return [$canonicalRequest, $signedHeaders];
 }
 
-// Signs an S3 request and returns [host, headers] with the Authorization
-// header already filled in.
-function s3_sign($method, $bucket, $region, $key, $payload, $credentials) {
+function s3_sign($method, $bucket, $region, $key, $payload, $credentials, $contentType = '') {
     $host = "$bucket.s3.$region.amazonaws.com";
     $amzDate = gmdate('Ymd\THis\Z');
     $dateStamp = gmdate('Ymd');
@@ -172,6 +149,9 @@ function s3_sign($method, $bucket, $region, $key, $payload, $credentials) {
         'X-Amz-Date' => $amzDate,
         'X-Amz-Content-Sha256' => $payloadHash,
     ];
+    if ($contentType !== '') {
+        $headers['Content-Type'] = $contentType;
+    }
     if (!empty($credentials['token'])) {
         $headers['X-Amz-Security-Token'] = $credentials['token'];
     }
@@ -199,35 +179,23 @@ function s3_sign($method, $bucket, $region, $key, $payload, $credentials) {
     return [$host, $headers];
 }
 
-// Gets S3 credentials one of two ways: first by asking the EC2 instance's
-// own metadata service (IMDSv2) for whatever IAM role is attached - the
-// preferred way, since those credentials are temporary and rotated
-// automatically with nothing to leak. If there's no role to ask (e.g.
-// running locally, or an AWS Academy Learner Lab where you can't attach
-// one), falls back to explicit AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY/
-// AWS_SESSION_TOKEN from config.php (set as environment variables, e.g.
-// copied from a Learner Lab's "AWS Details" panel - never hardcoded/
-// committed). Returns null if neither is available, quickly (short
-// timeouts on the metadata service calls) so this never hangs a request.
 function s3_instance_credentials() {
     $credentials = s3_role_credentials();
     if ($credentials) {
         return $credentials;
     }
 
-    if (AWS_ACCESS_KEY_ID !== '' && AWS_SECRET_ACCESS_KEY !== '') {
+    if (defined('AWS_ACCESS_KEY_ID') && AWS_ACCESS_KEY_ID !== '' && AWS_SECRET_ACCESS_KEY !== '') {
         return [
             'access_key' => AWS_ACCESS_KEY_ID,
             'secret_key' => AWS_SECRET_ACCESS_KEY,
-            'token' => AWS_SESSION_TOKEN,
+            'token' => AWS_SESSION_TOKEN ?? '',
         ];
     }
 
     return null;
 }
 
-// The IMDSv2 half of s3_instance_credentials() - split out so the fallback
-// logic above stays easy to follow.
 function s3_role_credentials() {
     $tokenCtx = stream_context_create(['http' => [
         'method' => 'PUT',
@@ -272,17 +240,14 @@ function s3_role_credentials() {
     ];
 }
 
-// Uploads $data to S3 under $key. Returns [publicUrl, error], matching the
-// shape handle_image_upload()'s callers already expect.
+// FIX 2: Pass $contentType into s3_sign so it gets signed in SigV4
 function s3_put_object($key, $data, $contentType) {
     $credentials = s3_instance_credentials();
     if (!$credentials) {
-        return [null, 'Could not get S3 credentials: no IAM role is attached to this instance, and '
-            . 'AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY are not set either. See config.php.'];
+        return [null, 'Could not get S3 credentials: no IAM role is attached to this instance, and AWS credentials are not set in config.php.'];
     }
 
-    [$host, $headers] = s3_sign('PUT', AWS_S3_BUCKET, AWS_S3_REGION, $key, $data, $credentials);
-    $headers['Content-Type'] = $contentType;
+    [$host, $headers] = s3_sign('PUT', AWS_S3_BUCKET, AWS_S3_REGION, $key, $data, $credentials, $contentType);
 
     $headerLines = '';
     foreach ($headers as $name => $value) {
@@ -307,9 +272,6 @@ function s3_put_object($key, $data, $contentType) {
     return ["https://$host/$key", null];
 }
 
-// Deletes an object previously uploaded to S3, given the URL stored in
-// image_url. Does nothing if the URL doesn't belong to the configured
-// bucket (defensive - shouldn't happen in practice).
 function s3_delete_object($url) {
     $host = AWS_S3_BUCKET . '.s3.' . AWS_S3_REGION . '.amazonaws.com';
     $prefix = "https://$host/";
@@ -338,8 +300,6 @@ function s3_delete_object($url) {
     @file_get_contents("https://$host/$key", false, $context);
 }
 
-// Pulls the HTTP status code out of the $http_response_header array that
-// PHP's stream wrapper populates after a file_get_contents() HTTP request.
 function s3_response_status($responseHeaders) {
     foreach ($responseHeaders as $line) {
         if (preg_match('#^HTTP/\S+\s+(\d+)#', $line, $m)) {
