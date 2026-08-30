@@ -39,15 +39,27 @@ function is_departure_in_past($date, $departureTime) {
 // to the wrong app's uploads folder (or nowhere).
 function entity_image_url($row) {
     if (!empty($row['image_url'])) {
-        if (str_starts_with($row['image_url'], 'https://') || str_starts_with($row['image_url'], 'http://')) {
-            return $row['image_url'];
+        $url = $row['image_url'];
+
+        // 1. If it's already a full http/https URL, return as-is
+        if (str_starts_with($url, 'https://') || str_starts_with($url, 'http://')) {
+            return $url;
         }
 
-        $relative = ltrim($row['image_url'], '/');
-        $prefix = str_contains($_SERVER['SCRIPT_NAME'] ?? '', '/admin/') ? '../' : '';
+        // 2. If S3 bucket is defined, construct full S3 URL with encoded spaces
+        if (defined('AWS_S3_BUCKET') && AWS_S3_BUCKET !== '') {
+            $relative = ltrim($url, '/');
+            // Encode spaces and special characters for S3 URL
+            $s3Path = implode('/', array_map('rawurlencode', explode('/', $relative)));
+            return 'https://' . AWS_S3_BUCKET . '.s3.' . AWS_S3_REGION . '.amazonaws.com/' . $s3Path;
+        }
 
+        // 3. Fallback for local disk development
+        $relative = ltrim($url, '/');
+        $prefix = str_contains($_SERVER['SCRIPT_NAME'] ?? '', '/admin/') ? '../' : '';
         $path = __DIR__ . '/' . $relative;
         $version = is_file($path) ? '?v=' . filemtime($path) : '';
+
         return $prefix . $relative . $version;
     }
 
