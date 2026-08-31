@@ -9,8 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die('Invalid CSRF token.');
     }
 
-    $id = (int)($_POST['id'] ?? 0);
+    $id     = (int)($_POST['id'] ?? 0);
     $status = $_POST['status'] ?? 'pending';
+
     $allowed = ['pending', 'confirmed', 'done', 'cancelled'];
 
     if ($id > 0 && in_array($status, $allowed, true)) {
