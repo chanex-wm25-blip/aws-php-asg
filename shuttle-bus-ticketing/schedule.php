@@ -2,7 +2,13 @@
 require 'config.php';
 require 'auth.php';
 
-$routes = $conn->query('SELECT * FROM routes ORDER BY departure_time')->fetch_all(MYSQLI_ASSOC);
+$result = $conn->query('SELECT * FROM routes ORDER BY departure_time');
+if (!$result) {
+    http_response_code(500);
+    error_log('Routes query failed: ' . $conn->error);
+    die('Failed to load routes. Check the server error log.');
+}
+$routes = $result->fetch_all(MYSQLI_ASSOC);
 
 $pageTitle = 'Shuttle Timetable';
 require 'partials/header.php';

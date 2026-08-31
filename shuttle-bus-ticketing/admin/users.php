@@ -7,7 +7,13 @@ $flashError = $_SESSION['flash_error'] ?? null;
 unset($_SESSION['flash_error']);
 
 $myId = current_user_id();
-$users = $conn->query('SELECT id, name, email, is_admin, created_at FROM users ORDER BY name')->fetch_all(MYSQLI_ASSOC);
+$result = $conn->query('SELECT id, name, email, is_admin, created_at FROM users ORDER BY name');
+if (!$result) {
+    http_response_code(500);
+    error_log('Users query failed: ' . $conn->error);
+    die('Failed to load users. Check the server error log.');
+}
+$users = $result->fetch_all(MYSQLI_ASSOC);
 
 $pageTitle = 'Manage Users';
 require 'partials/header.php';

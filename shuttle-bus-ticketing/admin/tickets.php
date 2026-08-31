@@ -9,14 +9,22 @@ require_admin();
 @$conn->query("ALTER TABLE tickets ADD COLUMN status ENUM('pending', 'confirmed', 'done', 'cancelled') DEFAULT 'pending'");
 @$conn->query("UPDATE tickets SET status = 'pending' WHERE status IS NULL OR status = ''");
 
-$tickets = $conn->query("
+$result = $conn->query("
     SELECT t.id, r.route_name, t.travel_date, t.seat_quantity, t.total_price, 
            t.status, u.name AS user_name, u.email AS user_email
     FROM tickets t
     JOIN routes r ON r.id = t.route_id
     JOIN users u ON u.id = t.user_id
     ORDER BY t.travel_date DESC
-")->fetch_all(MYSQLI_ASSOC);
+");
+
+if (!$result) {
+    http_response_code(500);
+    error_log('Tickets query failed: ' . $conn->error);
+    die('Failed to load tickets. Check the server error log.');
+}
+
+$tickets = $result->fetch_all(MYSQLI_ASSOC);
 
 $pageTitle = 'All Tickets';
 require 'partials/header.php';

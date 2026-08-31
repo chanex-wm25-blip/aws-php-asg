@@ -5,23 +5,29 @@ require '../helpers.php';
 require_admin();
 
 // 1. Analytics Queries
-$totalBookings = $conn->query("SELECT COUNT(*) AS total FROM tickets")->fetch_assoc()['total'] ?? 0;
-$totalRevenue  = $conn->query("SELECT SUM(total_price) AS rev FROM tickets")->fetch_assoc()['rev'] ?? 0.00;
-$todayBookings = $conn->query("SELECT COUNT(*) AS today FROM tickets WHERE DATE(created_at) = CURDATE()")->fetch_assoc()['today'] ?? 0;
+$result = $conn->query("SELECT COUNT(*) AS total FROM tickets");
+$totalBookings = ($result && ($row = $result->fetch_assoc())) ? $row['total'] : 0;
+
+$result = $conn->query("SELECT SUM(total_price) AS rev FROM tickets");
+$totalRevenue = ($result && ($row = $result->fetch_assoc())) ? $row['rev'] : 0.00;
+
+$result = $conn->query("SELECT COUNT(*) AS today FROM tickets WHERE DATE(created_at) = CURDATE()");
+$todayBookings = ($result && ($row = $result->fetch_assoc())) ? $row['today'] : 0;
 
 $busiestQuery  = $conn->query("
     SELECT r.route_name, SUM(t.seat_quantity) AS seats_booked 
     FROM tickets t JOIN routes r ON r.id = t.route_id 
     GROUP BY t.route_id ORDER BY seats_booked DESC LIMIT 1
 ");
-$busiestRoute = $busiestQuery->fetch_assoc()['route_name'] ?? 'None';
+$busiestRoute = ($busiestQuery && ($row = $busiestQuery->fetch_assoc())) ? $row['route_name'] : 'None';
 
 // 2. Data for Chart: Bookings per Route
-$routeChartData = $conn->query("
+$result = $conn->query("
     SELECT r.route_name, COUNT(t.id) AS booking_count 
     FROM routes r LEFT JOIN tickets t ON r.id = t.route_id 
     GROUP BY r.id
-")->fetch_all(MYSQLI_ASSOC);
+");
+$routeChartData = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 
 $routeLabels = array_column($routeChartData, 'route_name');
 $routeCounts = array_column($routeChartData, 'booking_count');

@@ -26,15 +26,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$routes = $conn->query('SELECT id, route_name FROM routes ORDER BY route_name')->fetch_all(MYSQLI_ASSOC);
+$result = $conn->query('SELECT id, route_name FROM routes ORDER BY route_name');
+if (!$result) {
+    http_response_code(500);
+    error_log('Routes query failed: ' . $conn->error);
+    die('Failed to load routes. Check the server error log.');
+}
+$routes = $result->fetch_all(MYSQLI_ASSOC);
 
-$testimonials = $conn->query('
+$result = $conn->query('
     SELECT t.id, t.comment, t.rating, t.created_at, t.user_id, u.name AS user_name, r.route_name
     FROM testimonials t
     JOIN users u ON u.id = t.user_id
     JOIN routes r ON r.id = t.route_id
     ORDER BY t.created_at DESC
-')->fetch_all(MYSQLI_ASSOC);
+');
+if (!$result) {
+    http_response_code(500);
+    error_log('Testimonials query failed: ' . $conn->error);
+    die('Failed to load testimonials. Check the server error log.');
+}
+$testimonials = $result->fetch_all(MYSQLI_ASSOC);
 
 $pageTitle = 'Testimonials';
 require 'partials/header.php';

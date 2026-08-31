@@ -3,7 +3,13 @@ require '../config.php';
 require '../auth.php';
 require_admin();
 
-$messages = $conn->query('SELECT * FROM contact_messages ORDER BY created_at DESC')->fetch_all(MYSQLI_ASSOC);
+$result = $conn->query('SELECT * FROM contact_messages ORDER BY created_at DESC');
+if (!$result) {
+    http_response_code(500);
+    error_log('Messages query failed: ' . $conn->error);
+    die('Failed to load messages. Check the server error log.');
+}
+$messages = $result->fetch_all(MYSQLI_ASSOC);
 
 $pageTitle = 'Contact Messages';
 require 'partials/header.php';

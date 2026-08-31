@@ -13,7 +13,14 @@ if ($date === '') {
     exit;
 }
 
-$routes = $conn->query('SELECT id, total_seats FROM routes')->fetch_all(MYSQLI_ASSOC);
+$result = $conn->query('SELECT id, total_seats FROM routes');
+if (!$result) {
+    http_response_code(500);
+    error_log('Routes query failed: ' . $conn->error);
+    echo json_encode(['error' => 'Database error. Check the server error log.']);
+    exit;
+}
+$routes = $result->fetch_all(MYSQLI_ASSOC);
 
 $stmt = $conn->prepare('SELECT route_id, COALESCE(SUM(seat_quantity), 0) AS booked FROM tickets WHERE travel_date = ? AND id != ? GROUP BY route_id');
 $stmt->bind_param('si', $date, $excludeId);
