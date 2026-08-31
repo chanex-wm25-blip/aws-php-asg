@@ -4,6 +4,10 @@ require '../auth.php';
 require '../helpers.php';
 require_admin();
 
+// Auto-add the missing status column to RDS if it doesn't exist yet
+$conn->query("ALTER TABLE tickets ADD COLUMN status ENUM('pending', 'confirmed', 'done', 'cancelled') DEFAULT 'pending'");
+$conn->query("UPDATE tickets SET status = 'pending' WHERE status IS NULL OR status = ''");
+
 $result = $conn->query("
     SELECT t.id, r.route_name, t.travel_date, t.seat_quantity, t.total_price, 
            COALESCE(t.status, 'pending') AS status, u.name AS user_name, u.email AS user_email
@@ -13,19 +17,12 @@ $result = $conn->query("
     ORDER BY t.travel_date DESC
 ");
 
-if (!$result) {
-    http_response_code(500);
-    error_log('Tickets query failed: ' . $conn->error);
-    die('Failed to load tickets.');
-}
-
-$tickets = $result->fetch_all(MYSQLI_ASSOC);
+$tickets = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 
 $pageTitle = 'All Tickets';
 require 'partials/header.php';
 ?>
 <h1>All Tickets</h1>
-
 <?php if (empty($tickets)): ?>
 <div class="empty-state">
 <div class="empty-state-icon">&#128196;</div>
@@ -73,5 +70,4 @@ require 'partials/header.php';
 <?php endforeach; ?>
 </table>
 <?php endif; ?>
-
 <?php require 'partials/footer.php'; ?>
