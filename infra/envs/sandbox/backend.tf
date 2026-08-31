@@ -7,14 +7,13 @@
 # account ID (for example: shuttlebus-tfstate-<your-account-id>). A backend
 # block cannot use variables/interpolation, so replace the bucket name below
 # with your own unique one and create it with that same name in the bootstrap
-# step. The DynamoDB lock table name is only account-scoped, so
-# "shuttlebusticket-tf-lock" is fine as-is.
+# step. The DynamoDB lock table name is only account-scoped
 terraform {
   backend "s3" {
     bucket         = "shuttlebus-tfstate-609329194143"
     key            = "sandbox/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "shuttlebusticket-tf-lock"
+    dynamodb_table = "shuttlebusticketing-tf-lock"
     encrypt        = true
   }
 }
