@@ -4,10 +4,6 @@ require '../auth.php';
 require '../helpers.php';
 require_admin();
 
-// Auto-create status column in RDS if missing
-// Use suppression operator to avoid error if column already exists
-@$conn->query("ALTER TABLE tickets ADD COLUMN status ENUM('pending', 'confirmed', 'done', 'cancelled') DEFAULT 'pending'");
-@$conn->query("UPDATE tickets SET status = 'pending' WHERE status IS NULL OR status = ''");
 
 $result = $conn->query("
     SELECT t.id, r.route_name, t.travel_date, t.seat_quantity, t.total_price, 
