@@ -1,15 +1,16 @@
 <?php
 require '../config.php';
 require '../auth.php';
+require '../helpers.php';
 require_admin();
 
-$tickets = $conn->query('
-    SELECT t.id, r.route_name, t.travel_date, t.seat_quantity, t.total_price, COALESCE(t.status, "pending") AS status, u.name AS user_name, u.email AS user_email
+$tickets = $conn->query("
+    SELECT t.id, r.route_name, t.travel_date, t.seat_quantity, t.total_price, COALESCE(t.status, 'pending') AS status, u.name AS user_name, u.email AS user_email
     FROM tickets t
     JOIN routes r ON r.id = t.route_id
     JOIN users u ON u.id = t.user_id
     ORDER BY t.travel_date DESC
-')->fetch_all(MYSQLI_ASSOC);
+")->fetch_all(MYSQLI_ASSOC);
 
 $pageTitle = 'All Tickets';
 require 'partials/header.php';
