@@ -10,10 +10,10 @@
 # step. The DynamoDB lock table name is only account-scoped
 terraform {
   backend "s3" {
-    bucket         = "shuttlebus-tfstate-609329194143"
+    bucket         = "shuttlebus-tfstate-150194514143"
     key            = "sandbox/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "shuttlebusticketing-tf-lock"
+    dynamodb_table = "shuttleticketing-tf-lock"
     encrypt        = true
   }
 }
