@@ -2,6 +2,10 @@
 **/.DS_Store
 Thumbs.db
 
+# Environment credentials file
+.env
+shuttle-bus-ticketing/.env
+
 # PHP dependencies - installed by `composer install` (run locally, or by
 # .github/workflows/deploy.yml before packaging the app for deploy).
 # composer.lock IS committed on purpose, for reproducible installs.
