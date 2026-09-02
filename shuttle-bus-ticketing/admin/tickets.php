@@ -5,7 +5,7 @@ require '../helpers.php';
 require_admin();
 
 // Auto-add the missing status column to RDS if it doesn't exist yet
-$conn->query("ALTER TABLE tickets ADD COLUMN status ENUM('pending', 'confirmed', 'done', 'cancelled') DEFAULT 'pending'");
+$conn->query("ALTER TABLE tickets ADD COLUMN status ENUM('pending', 'confirmed', 'cancelled') DEFAULT 'pending'");
 $conn->query("UPDATE tickets SET status = 'pending' WHERE status IS NULL OR status = ''");
 
 $result = $conn->query("
@@ -36,7 +36,6 @@ require 'partials/header.php';
     $bgColors = [
         'pending'   => '#fef3c7; color: #92400e;',
         'confirmed' => '#d1fae5; color: #065f46;',
-        'done'      => '#e0f2fe; color: #075985;',
         'cancelled' => '#fee2e2; color: #991b1b;'
     ];
     $style = $bgColors[$status] ?? '#f3f4f6; color: #374151;';
@@ -55,7 +54,6 @@ require 'partials/header.php';
 <select name="status" onchange="this.form.submit()" style="padding: 4px 8px; border-radius: 6px; font-weight: 600; border: 1px solid transparent; background-color: <?= $style ?>">
 <option value="pending" <?= $status === 'pending' ? 'selected' : '' ?>>Pending</option>
 <option value="confirmed" <?= $status === 'confirmed' ? 'selected' : '' ?>>Confirmed</option>
-<option value="done" <?= $status === 'done' ? 'selected' : '' ?>>Done</option>
 <option value="cancelled" <?= $status === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
 </select>
 </form>
