@@ -317,6 +317,30 @@ function s3_response_status($responseHeaders) {
     return 0;
 }
 
+// ============================================================================
+// AWS Secrets Manager Helper
+// ============================================================================
+function get_db_secret() {
+    $secretName = getenv('DB_SECRET_NAME') ?: 'shuttle-bus-ticketing-db-credentials';
+    $region = getenv('AWS_REGION') ?: (defined('AWS_S3_REGION') ? AWS_S3_REGION : 'us-east-1');
+
+    $awsBin = file_exists('/usr/bin/aws') ? '/usr/bin/aws' : '/usr/local/bin/aws';
+    
+    $cmd = sprintf(
+        '%s secretsmanager get-secret-value --secret-id %s --region %s --query SecretString --output text 2>&1',
+        $awsBin,
+        escapeshellarg($secretName),
+        escapeshellarg($region)
+    );
+
+    $output = shell_exec($cmd);
+    if ($output === null || str_contains($output, 'ResourceNotFoundException') || str_contains($output, 'AccessDenied')) {
+        return null;
+    }
+
+    return json_decode(trim($output), true);
+}
+
 function send_sns_alert($subject, $message) {
     $topicArn = getenv('SNS_TOPIC_ARN') ?: (defined('SNS_TOPIC_ARN') ? SNS_TOPIC_ARN : '');
     if ($topicArn === '') {

@@ -70,10 +70,14 @@ date_default_timezone_set('Asia/Kuala_Lumpur');
 //   $user = 'admin';
 //   $pass = 'your-rds-master-password';
 // ============================================================================
-$host   = getenv('DB_HOST') ?: ($_SERVER['DB_HOST'] ?? 'localhost');
-$user   = getenv('DB_USER') ?: ($_SERVER['DB_USER'] ?? 'root');
-$pass   = getenv('DB_PASS') ?: ($_SERVER['DB_PASS'] ?? '');
-$dbname = getenv('DB_NAME') ?: ($_SERVER['DB_NAME'] ?? 'shuttle_bus_db');
+require_once __DIR__ . '/helpers.php';
+
+$secret = get_db_secret();
+
+$host   = $secret['DB_HOST']   ?? (getenv('DB_HOST')   ?: ($_SERVER['DB_HOST']   ?? 'localhost'));
+$user   = $secret['DB_USER']   ?? (getenv('DB_USER')   ?: ($_SERVER['DB_USER']   ?? 'root'));
+$pass   = $secret['DB_PASS']   ?? (getenv('DB_PASS')   ?: ($_SERVER['DB_PASS']   ?? ''));
+$dbname = $secret['DB_NAME']   ?? (getenv('DB_NAME')   ?: ($_SERVER['DB_NAME'] ?? 'shuttle_bus_db'));
 
 error_log(sprintf(
     'Database configuration: host=%s user=%s database=%s password_present=%s env_files=%s',
@@ -141,7 +145,6 @@ $conn->query("SET time_zone = '+08:00'");
 // ============================================================================
 // S3 is required for this assignment so uploaded route images are shared across
 // all EC2 instances behind the ALB and remain readable by the browser.
-define('AWS_S3_BUCKET', getenv('AWS_S3_BUCKET') ?: (getenv('S3_BUCKET') ?: 'shuttlebusticketing-150194514143'));
 define('AWS_S3_BUCKET', getenv('AWS_S3_BUCKET') ?: (getenv('S3_BUCKET') ?: 'shuttlebusticketing'));
 define('AWS_S3_REGION', getenv('AWS_S3_REGION') ?: (getenv('AWS_REGION') ?: 'us-east-1'));
 define('AWS_ACCESS_KEY_ID', getenv('AWS_ACCESS_KEY_ID') ?: '');
