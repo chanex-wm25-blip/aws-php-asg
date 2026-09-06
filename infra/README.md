@@ -171,6 +171,7 @@ STATE_BUCKET="shuttlebus-tfstate-${ACCOUNT_ID}"
 aws s3api create-bucket --bucket "$STATE_BUCKET" --region us-east-1
 aws s3api put-bucket-versioning --bucket "$STATE_BUCKET" --versioning-configuration Status=Enabled
 aws dynamodb create-table --table-name shuttlebusticket-tf-lock \
+aws dynamodb create-table --table-name shuttlebus-tflock \
   --attribute-definitions AttributeName=LockID,AttributeType=S \
   --key-schema AttributeName=LockID,KeyType=HASH \
   --billing-mode PAY_PER_REQUEST

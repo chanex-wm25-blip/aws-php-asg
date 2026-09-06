@@ -13,7 +13,7 @@ terraform {
     bucket         = "shuttlebus-tfstate-150194514143"
     key            = "sandbox/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "shuttleticketing-tf-lock"
+    dynamodb_table = "shuttlebus-tflock"
     encrypt        = true
   }
 }
