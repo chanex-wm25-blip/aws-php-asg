@@ -141,6 +141,7 @@ $conn->query("SET time_zone = '+08:00'");
 // ============================================================================
 // S3 is required for this assignment so uploaded route images are shared across
 // all EC2 instances behind the ALB and remain readable by the browser.
+define('AWS_S3_BUCKET', getenv('AWS_S3_BUCKET') ?: (getenv('S3_BUCKET') ?: 'shuttlebusticketing-150194514143'));
 define('AWS_S3_BUCKET', getenv('AWS_S3_BUCKET') ?: (getenv('S3_BUCKET') ?: 'shuttlebusticketing'));
 define('AWS_S3_REGION', getenv('AWS_S3_REGION') ?: (getenv('AWS_REGION') ?: 'us-east-1'));
 define('AWS_ACCESS_KEY_ID', getenv('AWS_ACCESS_KEY_ID') ?: '');

@@ -1,22 +1,11 @@
-# holds route photo uploads. Bucket ACLs stay blocked;
-# only unauthenticated GetObject under uploads/* is allowed via bucket policy so
-# images render in the browser, without allowing public listing or writes.
-resource "aws_s3_bucket" "uploads" {
-  bucket = var.bucket_name
-
-  # Sandbox environment: by the time you `terraform destroy`, this bucket will
-  # contain uploaded route images, deploy.yml release artifacts, and
-  # db-init.yml's schema.sql/seed-db.sh. AWS refuses to delete a non-empty
-  # bucket, so without force_destroy the destroy would fail on this resource.
-  force_destroy = true
-
-  tags = {
-    Name = "${var.name_prefix}-s3-uploads"
-  }
-}
+# In AWS Academy / Voclabs, Service Control Policy (SCP) explicitly blocks
+# s3:GetBucketObjectLockConfiguration, causing Terraform's aws_s3_bucket resource
+# read to fail with 403 AccessDenied. Since the bucket (var.bucket_name) is already
+# created in the account, we configure policies, public access block, and CORS
+# directly on the bucket name without managing the bucket container itself.
 
 resource "aws_s3_bucket_public_access_block" "uploads" {
-  bucket = aws_s3_bucket.uploads.id
+  bucket = var.bucket_name
 
   block_public_acls       = true
   ignore_public_acls      = true
@@ -25,7 +14,7 @@ resource "aws_s3_bucket_public_access_block" "uploads" {
 }
 
 resource "aws_s3_bucket_policy" "public_read" {
-  bucket = aws_s3_bucket.uploads.id
+  bucket = var.bucket_name
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -34,7 +23,7 @@ resource "aws_s3_bucket_policy" "public_read" {
         Effect    = "Allow"
         Principal = "*"
         Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.uploads.arn}/${var.public_read_prefix}"
+        Resource  = "arn:aws:s3:::${var.bucket_name}/${var.public_read_prefix}"
       }
     ]
   })
@@ -43,7 +32,7 @@ resource "aws_s3_bucket_policy" "public_read" {
 }
 
 resource "aws_s3_bucket_cors_configuration" "uploads" {
-  bucket = aws_s3_bucket.uploads.id
+  bucket = var.bucket_name
 
   cors_rule {
     allowed_headers = ["*"]

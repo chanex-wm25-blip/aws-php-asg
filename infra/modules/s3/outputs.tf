@@ -1,11 +1,11 @@
 output "bucket_id" {
-  value = aws_s3_bucket.uploads.id
+  value = var.bucket_name
 }
 
 output "bucket_arn" {
-  value = aws_s3_bucket.uploads.arn
+  value = "arn:aws:s3:::${var.bucket_name}"
 }
 
 output "bucket_regional_domain_name" {
-  value = aws_s3_bucket.uploads.bucket_regional_domain_name
+  value = "${var.bucket_name}.s3.amazonaws.com"
 }
