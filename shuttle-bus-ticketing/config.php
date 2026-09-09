@@ -35,7 +35,7 @@ date_default_timezone_set('Asia/Kuala_Lumpur');
 $host   = getenv('DB_HOST') ?: 'localhost';
 $user   = getenv('DB_USER') ?: 'root';
 $pass   = getenv('DB_PASS') ?: '';
-$dbname = getenv('DB_NAME') ?: 'event_ticketing_db';
+$dbname = getenv('DB_NAME') ?: 'shuttle_bus_db';
 
 $conn = new mysqli($host, $user, $pass, $dbname);
 if ($conn->connect_error) {
