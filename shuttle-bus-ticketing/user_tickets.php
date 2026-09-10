@@ -32,8 +32,8 @@ require 'partials/header.php';
 
     <?php if (empty($myTickets)): ?>
         <div class="empty-state" style="background: #fff; padding: 40px; border-radius: 12px; text-align: center; border: 1px solid #e5e7eb;">
-            <div class="empty-state-icon" style="font-size: 2rem; margin-bottom: 10px;">&#128196;</div>
-            <p style="color: #4b5563;">You haven't booked any tickets yet.</p>
+            <div class="empty-state-icon" style="font-size: 2.5rem; margin-bottom: 10px;">&#128196;</div>
+            <p style="color: #4b5563; font-size: 1rem;">You haven't booked any tickets yet.</p>
         </div>
     <?php else: ?>
         <div style="display: flex; flex-direction: column; gap: 20px;">
@@ -107,8 +107,10 @@ require 'partials/header.php';
                 </div>
 
             </div>
-            <?php endforeach; ?>
-            <?php endforeach; ?>
+            <?php 
+                endforeach; 
+            endforeach; 
+            ?>
         </div>
     <?php endif; ?>
 </div>
