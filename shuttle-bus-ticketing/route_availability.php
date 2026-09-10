@@ -6,10 +6,11 @@ require_login();
 header('Content-Type: application/json');
 
 $date      = $_GET['travel_date'] ?? '';
+$routeId   = (int)($_GET['route_id'] ?? 0);
 $excludeId = (int)($_GET['exclude_ticket_id'] ?? 0);
 
 if ($date === '') {
-    echo json_encode(['full_route_ids' => []]);
+    echo json_encode(['full_route_ids' => [], 'booked_seat_labels' => []]);
     exit;
 }
 
@@ -39,4 +40,26 @@ foreach ($routes as $r) {
     }
 }
 
-echo json_encode(['full_route_ids' => $fullRouteIds]);
+$bookedSeatLabels = [];
+if ($routeId > 0) {
+    $stmtSeats = $conn->prepare('SELECT seat_numbers FROM tickets WHERE route_id = ? AND travel_date = ? AND id != ?');
+    $stmtSeats->bind_param('isi', $routeId, $date, $excludeId);
+    $stmtSeats->execute();
+    $seatRes = $stmtSeats->get_result();
+    while ($sRow = $seatRes->fetch_assoc()) {
+        if (!empty($sRow['seat_numbers'])) {
+            foreach (explode(',', $sRow['seat_numbers']) as $lbl) {
+                $cleaned = trim($lbl);
+                if ($cleaned !== '') {
+                    $bookedSeatLabels[] = $cleaned;
+                }
+            }
+        }
+    }
+    $stmtSeats->close();
+}
+
+echo json_encode([
+    'full_route_ids' => $fullRouteIds,
+    'booked_seat_labels' => $bookedSeatLabels
+]);

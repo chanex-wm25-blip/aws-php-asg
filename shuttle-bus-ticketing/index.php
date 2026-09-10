@@ -16,7 +16,14 @@ error_log('Index database connection is ready');
 $search = trim($_GET['q'] ?? '');
 
 if ($search !== '') {
-    $stmt = $conn->prepare('SELECT * FROM routes WHERE route_name LIKE ? ORDER BY departure_time');
+    $stmt = $conn->prepare('
+        SELECT r.*, COALESCE(SUM(t.seat_quantity), 0) AS booked_seats 
+        FROM routes r 
+        LEFT JOIN tickets t ON r.id = t.route_id AND t.travel_date = CURDATE() 
+        WHERE r.route_name LIKE ? 
+        GROUP BY r.id 
+        ORDER BY r.departure_time
+    ');
     if (!$stmt) {
         error_log('Index route search prepare failed: ' . $conn->error);
         http_response_code(500);
@@ -32,7 +39,13 @@ if ($search !== '') {
     $routes = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 } else {
-    $routeResult = $conn->query('SELECT * FROM routes ORDER BY departure_time');
+    $routeResult = $conn->query('
+        SELECT r.*, COALESCE(SUM(t.seat_quantity), 0) AS booked_seats 
+        FROM routes r 
+        LEFT JOIN tickets t ON r.id = t.route_id AND t.travel_date = CURDATE() 
+        GROUP BY r.id 
+        ORDER BY r.departure_time
+    ');
     if (!$routeResult) {
         error_log('Index route query failed: ' . $conn->error);
         http_response_code(500);
@@ -43,26 +56,11 @@ if ($search !== '') {
 
 error_log('Index routes loaded: count=' . count($routes));
 
-$myTickets = [];
-if ($uid = current_user_id()) {
-    $stmt = $conn->prepare('
-        SELECT t.id, r.route_name, r.origin, r.destination, r.departure_time, t.travel_date, t.seat_quantity, t.total_price
-        FROM tickets t
-        JOIN routes r ON r.id = t.route_id
-        WHERE t.user_id = ?
-        ORDER BY t.travel_date DESC
-    ');
-    $stmt->bind_param('i', $uid);
-    $stmt->execute();
-    $myTickets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
-}
-
 $pageTitle = 'Campus Shuttle Bus Ticketing';
 require 'partials/header.php';
 ?>
 <section class="hero">
-<h1>Campus Shuttle Bus Ticketing</h1>
+<h1>TARUMT Campus Shuttle Bus Ticketing</h1>
 <p>Book your seat on a campus shuttle route ahead of time.</p>
 </section>
 
@@ -96,12 +94,28 @@ require 'partials/header.php';
 </div>
 <?php else: ?>
 <div class="card-grid">
-<?php foreach ($routes as $r): ?>
+<?php foreach ($routes as $r): 
+    $total = (int)$r['total_seats'];
+    $booked = (int)($r['booked_seats'] ?? 0);
+    $available = max(0, $total - $booked);
+    $percent = $total > 0 ? min(100, round(($booked / $total) * 100)) : 0;
+?>
 <div class="card">
 <img class="card-thumb" src="<?= htmlspecialchars(entity_image_url($r)) ?>" alt="<?= htmlspecialchars($r['route_name']) ?>" loading="lazy">
 <h3><?= htmlspecialchars($r['route_name']) ?></h3>
 <p><?= htmlspecialchars($r['origin']) ?> &rarr; <?= htmlspecialchars($r['destination']) ?></p>
 <p>Departs <?= htmlspecialchars($r['departure_time']) ?> &middot; RM<?= number_format($r['price'], 2) ?> &middot; <?= (int)$r['total_seats'] ?> seats/bus</p>
+
+<div class="seat-progress-container">
+    <div class="seat-progress-labels">
+        <span>Available: <strong><?= $available ?></strong>/<?= $total ?></span>
+        <span><?= $percent ?>% Booked</span>
+    </div>
+    <div class="progress-bar-bg">
+        <div class="progress-bar-fill" style="width: <?= $percent ?>%;"></div>
+    </div>
+</div>
+
 <?php if (current_user_id()): ?>
 <a class="btn" href="create.php?route_id=<?= (int)$r['id'] ?>">Book Ticket</a>
 <?php else: ?>
@@ -113,37 +127,4 @@ require 'partials/header.php';
 <?php endif; ?>
 </section>
 
-<section>
-<h2>My Tickets</h2>
-<?php if (!current_user_id()): ?>
-<p><a href="login.php">Login</a> or <a href="register.php">register</a> to view and manage your tickets.</p>
-<?php elseif (empty($myTickets)): ?>
-<div class="empty-state">
-<div class="empty-state-icon">&#128196;</div>
-<p>You haven't booked any tickets yet.</p>
-</div>
-<?php else: ?>
-<table>
-<tr><th>Route</th><th>Travel Date</th><th>Departs</th><th>Seats</th><th>Total (RM)</th><th>Actions</th></tr>
-<?php foreach ($myTickets as $t): ?>
-<tr>
-<td><?= htmlspecialchars($t['route_name']) ?></td>
-<td><?= htmlspecialchars($t['travel_date']) ?></td>
-<td><?= htmlspecialchars($t['departure_time']) ?></td>
-<td><?= (int)$t['seat_quantity'] ?></td>
-<td><?= number_format($t['total_price'], 2) ?></td>
-<td>
-<a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$t['id'] ?>">Edit</a>
-<form action="delete.php" method="post" style="display:inline" onsubmit="return confirm('Cancel this ticket?');">
-<!-- Added CSRF Token protection for cancellation -->
-<input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf_token()) ?>">
-<input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
-<button type="submit" class="btn-small btn-danger">Cancel</button>
-</form>
-</td>
-</tr>
-<?php endforeach; ?>
-</table>
-<?php endif; ?>
-</section>
 <?php require 'partials/footer.php'; ?>

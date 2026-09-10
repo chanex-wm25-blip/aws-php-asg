@@ -28,6 +28,7 @@ function nav_active($page, $current) {
 <a class="brand" href="index.php"><img src="assets/tarumt-logo.png" alt="TAR UMT" class="brand-logo">Campus Shuttle Bus Ticketing</a>
 <div class="nav-links">
 <a href="index.php" class="<?= trim(nav_active('index.php', $currentPage)) ?>">Home</a>
+<a href="user_tickets.php" class="<?= trim(nav_active('user_tickets.php', $currentPage)) ?>">My Tickets</a>
 <a href="routes.php" class="<?= trim(nav_active('routes.php', $currentPage)) ?>">Routes</a>
 <a href="schedule.php" class="<?= trim(nav_active('schedule.php', $currentPage)) ?>">Schedule</a>
 <a href="testimonials.php" class="<?= trim(nav_active('testimonials.php', $currentPage)) ?>">Testimonials</a>
