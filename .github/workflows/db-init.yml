@@ -1,7 +1,7 @@
 name: DB - Seed Database (one-time)
 
 # Manual trigger only. Safe to accidentally run more than once - the seed
-# script checks whether event_ticketing_db.users already exists and skips the
+# script checks whether shuttle_bus_db.users already exists and skips the
 # import if so, rather than failing on duplicate-key errors from schema.sql's
 # seed INSERTs.
 on:
@@ -9,7 +9,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  APP_TAG: shuttle-bus-ticketing-shuttle-bus-ticketing
+  APP_TAG: shuttle-bus-ticketing
   SCHEMA_KEY: db-init/schema.sql
   SCRIPT_KEY: db-init/seed-db.sh
 
@@ -41,7 +41,6 @@ jobs:
       - name: Resolve S3 bucket from Terraform output
         working-directory: infra/envs/sandbox
         run: |
-          terraform init -input=false
           terraform init -input=false -reconfigure
           echo "SCHEMA_BUCKET=$(terraform output -raw s3_bucket_name)" >> "$GITHUB_ENV"
 
@@ -49,7 +48,7 @@ jobs:
         run: |
           aws s3 cp shuttle-bus-ticketing/schema.sql "s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCHEMA_KEY }}"
           aws s3 cp infra/scripts/seed-db.sh "s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCRIPT_KEY }}"
-          # Upload sample event images so the seed data's image_url references
+          # Upload sample route images so the seed data's image_url references
           # resolve. seed-db.sh will rewrite the DB paths to S3 URLs after import.
           aws s3 sync shuttle-bus-ticketing/uploads/ "s3://${{ env.SCHEMA_BUCKET }}/uploads/" \
             --exclude "index.html"
@@ -59,8 +58,20 @@ jobs:
           set -euo pipefail
 
           INSTANCE_ID=$(aws ec2 describe-instances \
-            --filters "Name=tag:App,Values=shuttle-bus-ticketing-shuttle-bus-ticketing,shuttle-bus-ticketing,assignment-shuttle-bus-ticketing" "Name=instance-state-name,Values=running" \
+            --filters "Name=instance-state-name,Values=running" "Name=tag:aws:autoscaling:groupName,Values=shuttle-bus-ticketing-asg,assignment-asg" \
             --query "Reservations[0].Instances[0].InstanceId" --output text)
+
+          if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" == "None" ]; then
+            INSTANCE_ID=$(aws ec2 describe-instances \
+              --filters "Name=instance-state-name,Values=running" "Name=tag:Name,Values=shuttle-bus-ticketing-ec2,shuttle-bus-ticketing-asg-instance,assignment-ec2" \
+              --query "Reservations[0].Instances[0].InstanceId" --output text)
+          fi
+
+          if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" == "None" ]; then
+            INSTANCE_ID=$(aws ec2 describe-instances \
+              --filters "Name=instance-state-name,Values=running" "Name=tag:App,Values=shuttle-bus-ticketing-shuttle-bus-ticketing,shuttle-bus-ticketing,assignment-shuttle-bus-ticketing,assignment-event-ticketing" \
+              --query "Reservations[0].Instances[0].InstanceId" --output text)
+          fi
 
           if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" == "None" ]; then
             INSTANCE_ID=$(aws ec2 describe-instances \
