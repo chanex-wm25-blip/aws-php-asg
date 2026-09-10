@@ -6,7 +6,6 @@ on:
       ref:
         description: "Git ref to deploy (branch, tag, or commit SHA)"
         required: false
-        default: master
         default: main
   workflow_call:
     inputs:
@@ -14,18 +13,14 @@ on:
         description: "Git ref to deploy (branch, tag, or commit SHA)"
         required: false
         type: string
-        default: master
         default: main
 
 env:
   AWS_REGION: us-east-1
   TF_WORKING_DIR: infra/envs/sandbox
-  APP_DIR: src
   APP_DIR: shuttle-bus-ticketing
   ARTIFACT_PREFIX: artifacts
-  ARTIFACT_NAME: sport-facility-bookings-app.zip
-  APP_TAG: sport-facility-bookings
-  ARTIFACT_NAME: assignment-app.zip
+  ARTIFACT_NAME: shuttlebusbusticket-app.zip
   APP_TAG: shuttle-bus-ticketing-shuttle-bus-ticketing
   ARTIFACT_BUCKET: "" # Populated dynamically from terraform output
   ASG_NAME: ""        # Populated dynamically from terraform output
@@ -66,7 +61,6 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
           terraform init -input=false
-          terraform init -input=false -reconfigure
           terraform apply -auto-approve
           echo "ARTIFACT_BUCKET=$(terraform output -raw s3_bucket_name)" >> "$GITHUB_ENV"
           echo "ASG_NAME=$(terraform output -raw asg_name)" >> "$GITHUB_ENV"
@@ -78,7 +72,6 @@ jobs:
 
       - name: Install app dependencies (AWS SDK for PHP)
         working-directory: ${{ env.APP_DIR }}
-        run: composer install --no-dev --optimize-autoloader
         run: |
           if [ -f "composer.json" ]; then
             composer install --no-dev --optimize-autoloader
@@ -88,7 +81,7 @@ jobs:
 
       - name: Package application
         working-directory: ${{ env.APP_DIR }}
-        run: zip -r "../${{ env.ARTIFACT_NAME }}" . -x "uploads/*"
+        run: zip -r "../${{ env.ARTIFACT_NAME }}" . -x "uploads/*" ".env" ".env.*"
 
       - name: Upload artifact to S3
         run: |
@@ -133,7 +126,6 @@ jobs:
           for i in $(seq 1 30); do
             INSTANCE_IDS=$(aws ec2 describe-instances \
               --filters "Name=tag:App,Values=${{ env.APP_TAG }}" "Name=instance-state-name,Values=running" \
-              --filters "Name=tag:App,Values=${{ env.APP_TAG }},shuttle-bus-ticketing,assignment-shuttle-bus-ticketing" "Name=instance-state-name,Values=running" \
               --query "Reservations[].Instances[].InstanceId" --output text)
 
             if [ -n "$INSTANCE_IDS" ]; then
@@ -165,19 +157,9 @@ jobs:
             --comment "${{ env.APP_TAG }} deploy" \
             --parameters '{"commands":[
               "cloud-init status --wait",
-              "cloud-init status --wait || true",
               "aws s3 cp s3://${{ env.ARTIFACT_BUCKET }}/${{ env.ARTIFACT_PREFIX }}/${{ env.ARTIFACT_NAME }} /tmp/app-deploy.zip",
-              "sudo rm -rf /var/www/html/*",
+              "sudo find /var/www/html -mindepth 1 -maxdepth 1 ! -name 'uploads' -exec rm -rf -- {} +",
               "sudo unzip -o /tmp/app-deploy.zip -d /var/www/html",
-              "DB_HOST=$(grep -oP \"(?<=env\\[DB_HOST\\] = ).*\" /etc/php-fpm.d/app-env.conf | head -1 | tr -d \"\\r\")",
-              "DB_USER=$(grep -oP \"(?<=env\\[DB_USER\\] = ).*\" /etc/php-fpm.d/app-env.conf | head -1 | tr -d \"\\r\")",
-              "DB_PASS=$(grep -oP \"(?<=env\\[DB_PASS\\] = ).*\" /etc/php-fpm.d/app-env.conf | head -1 | tr -d \"\\r\")",
-              "DB_NAME=$(grep -oP \"(?<=env\\[DB_NAME\\] = ).*\" /etc/php-fpm.d/app-env.conf | head -1 | tr -d \"\\r\")",
-              "S3_BUCKET=$(grep -oP \"(?<=env\\[AWS_S3_BUCKET\\] = ).*\" /etc/php-fpm.d/app-env.conf | head -1 | tr -d \"\\r\")",
-              "S3_REGION=$(grep -oP \"(?<=env\\[AWS_S3_REGION\\] = ).*\" /etc/php-fpm.d/app-env.conf | head -1 | tr -d \"\\r\")",
-              "printf 'DB_HOST=%s\\nDB_USER=%s\\nDB_PASS=%s\\nDB_NAME=%s\\nAWS_S3_BUCKET=%s\\nAWS_S3_REGION=%s\\n' \"$DB_HOST\" \"$DB_USER\" \"$DB_PASS\" \"$DB_NAME\" \"$S3_BUCKET\" \"$S3_REGION\" | sudo tee /var/www/html/.env > /dev/null",
-              "if [ -f /etc/assignment-db.env ]; then sudo cp /etc/assignment-db.env /var/www/html/.env; fi",
-              "sudo systemctl restart php-fpm || true",
               "sudo systemctl restart httpd"
             ]}' \
             --query "Command.CommandId" --output text)
@@ -187,13 +169,6 @@ jobs:
             exit 1
           fi
 
-          # Don't reuse an instance-ID list captured before send-command: the
-          # ASG may be mid instance-refresh (e.g. a new AMI picked up by
-          # 'most_recent = true' rolling the launch template), so an instance
-          # that was "running" a moment ago can be gone by the time SSM
-          # resolves the tag-based --targets, causing InvocationDoesNotExist.
-          # Instead, ask SSM which instances the command actually targeted,
-          # giving it a few seconds to register the invocations first.
           TARGET_IDS=""
           for i in $(seq 1 6); do
             TARGET_IDS=$(aws ssm list-command-invocations \

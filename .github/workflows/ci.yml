@@ -15,7 +15,6 @@ on:
       ref:
         description: "Git ref to deploy (only used when mode=deploy)"
         required: false
-        default: master
         default: main
 
 permissions:

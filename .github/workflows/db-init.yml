@@ -1,18 +1,17 @@
 name: DB - Seed Database (one-time)
 
+# Manual trigger only. Safe to accidentally run more than once - the seed
+# script checks whether event_ticketing_db.users already exists and skips the
+# import if so, rather than failing on duplicate-key errors from schema.sql's
+# seed INSERTs.
 on:
   workflow_dispatch: {}
 
 env:
   AWS_REGION: us-east-1
-  APP_TAG: sport-facility-bookings
   APP_TAG: shuttle-bus-ticketing-shuttle-bus-ticketing
   SCHEMA_KEY: db-init/schema.sql
   SCRIPT_KEY: db-init/seed-db.sh
-  SCHEMA_BUCKET: "" # Satisfies the VS Code static linter; populated dynamically at runtime
-
-permissions:
-  contents: read
 
 jobs:
   seed:
@@ -32,11 +31,12 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # Resolve the bucket name from Terraform state rather than hardcoding it,
+      # so it stays in sync with the account-ID-suffixed name Terraform created.
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.9.0"
-          terraform_wrapper: false
 
       - name: Resolve S3 bucket from Terraform output
         working-directory: infra/envs/sandbox
@@ -47,11 +47,10 @@ jobs:
 
       - name: Upload schema.sql, seed script, and sample images to S3
         run: |
-          aws s3 cp src/schema.sql "s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCHEMA_KEY }}"
-          aws s3 cp infra/script/seed-db.sh "s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCRIPT_KEY }}"
-          aws s3 sync src/uploads/ "s3://${{ env.SCHEMA_BUCKET }}/uploads/" \
           aws s3 cp shuttle-bus-ticketing/schema.sql "s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCHEMA_KEY }}"
           aws s3 cp infra/scripts/seed-db.sh "s3://${{ env.SCHEMA_BUCKET }}/${{ env.SCRIPT_KEY }}"
+          # Upload sample event images so the seed data's image_url references
+          # resolve. seed-db.sh will rewrite the DB paths to S3 URLs after import.
           aws s3 sync shuttle-bus-ticketing/uploads/ "s3://${{ env.SCHEMA_BUCKET }}/uploads/" \
             --exclude "index.html"
 
@@ -60,15 +59,8 @@ jobs:
           set -euo pipefail
 
           INSTANCE_ID=$(aws ec2 describe-instances \
-            --filters "Name=tag:App,Values=${{ env.APP_TAG }}" "Name=instance-state-name,Values=running" \
-            --filters "Name=tag:App,Values=${{ env.APP_TAG }},shuttle-bus-ticketing,assignment-shuttle-bus-ticketing" "Name=instance-state-name,Values=running" \
+            --filters "Name=tag:App,Values=shuttle-bus-ticketing-shuttle-bus-ticketing,shuttle-bus-ticketing,assignment-shuttle-bus-ticketing" "Name=instance-state-name,Values=running" \
             --query "Reservations[0].Instances[0].InstanceId" --output text)
-
-          if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" == "None" ]; then
-            INSTANCE_ID=$(aws ec2 describe-instances \
-              --filters "Name=tag:Name,Values=shuttle-bus-ticketing-ec2,shuttle-bus-ticketing-asg-instance,assignment-ec2" "Name=instance-state-name,Values=running" \
-              --query "Reservations[0].Instances[0].InstanceId" --output text)
-          fi
 
           if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" == "None" ]; then
             INSTANCE_ID=$(aws ec2 describe-instances \
@@ -86,8 +78,6 @@ jobs:
 
           COMMAND_ID=$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
-            --instance-ids "$INSTANCE_ID" \
-            --comment "sport-facility-bookings db seed" \
             --instance-ids "$FIRST_INSTANCE" \
             --comment "shuttle-bus-ticketing db seed" \
             --parameters '{"commands":[
@@ -97,7 +87,6 @@ jobs:
             ]}' \
             --query "Command.CommandId" --output text)
 
-          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" || true
           echo "Sent command $COMMAND_ID. Waiting for execution to complete..."
           for i in $(seq 1 30); do
             STATUS=$(aws ssm get-command-invocation \
@@ -105,8 +94,6 @@ jobs:
               --instance-id "$FIRST_INSTANCE" \
               --query "Status" --output text 2>/dev/null || echo "Pending")
 
-          STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --query "Status" --output text)
-          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"
             echo "Command status: $STATUS (attempt $i/30)"
             if [ "$STATUS" = "Success" ]; then
               echo "DB seed completed successfully!"
@@ -120,10 +107,6 @@ jobs:
             sleep 10
           done
 
-          if [ "$STATUS" != "Success" ]; then
-            echo "SSM command failed with status: $STATUS"
-            exit 1
-          fi
           echo "Timed out waiting for seed command to finish."
           aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$FIRST_INSTANCE" || true
           exit 1
