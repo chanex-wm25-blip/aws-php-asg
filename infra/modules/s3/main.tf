@@ -46,7 +46,7 @@ resource "aws_s3_bucket_policy" "public_read" {
     ]
   })
 
-  depends_on = [terraform_data.uploads, aws_s3_bucket_public_access_block.uploads]
+  depends_on = [aws_s3_bucket_public_access_block.uploads]
 }
 
 resource "aws_s3_bucket_cors_configuration" "uploads" {
@@ -60,4 +60,7 @@ resource "aws_s3_bucket_cors_configuration" "uploads" {
     allowed_origins = ["*"]
     max_age_seconds = 3000
   }
+  
+  depends_on = [null_resource.uploads]  
+  
 }
