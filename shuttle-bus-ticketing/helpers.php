@@ -1,6 +1,7 @@
 <?php
 // TAR UMT's faculties and centres, used to populate the Faculty dropdown on
 // registration and the account page instead of a free-text field.
+if (!function_exists('tarumt_faculties')) {
 function tarumt_faculties() {
     return [
         'Faculty of Accountancy, Finance and Business',
@@ -19,14 +20,17 @@ function tarumt_faculties() {
         'Institute of Social Economic Research (ISER)',
     ];
 }
+}
 
 // True if a route's departure time (e.g. "08:00") on the given date has
 // already passed relative to now - a route scheduled for today whose bus
 // already left can't be booked for today (a future date is never "in the
 // past" no matter the departure time).
+if (!function_exists('is_departure_in_past')) {
 function is_departure_in_past($date, $departureTime) {
     $depart = strtotime($date . ' ' . $departureTime);
     return $depart !== false && $depart < time();
+}
 }
 
 // Falls back to a neutral placeholder until an admin uploads a real photo.
@@ -37,6 +41,7 @@ function is_departure_in_past($date, $departureTime) {
 // this app may be hosted as a subdirectory alongside sibling apps (not at the
 // web server's document root) - a leading "/uploads/..." would then resolve
 // to the wrong app's uploads folder (or nowhere).
+if (!function_exists('entity_image_url')) {
 function entity_image_url($row) {
     if (!empty($row['image_url'])) {
         if (str_starts_with($row['image_url'], 'https://') || str_starts_with($row['image_url'], 'http://')) {
@@ -58,12 +63,14 @@ function entity_image_url($row) {
 
     return 'data:image/svg+xml;base64,' . base64_encode($svg);
 }
+}
 
 // Validates an uploaded photo, then stores it either on S3 (if AWS_S3_BUCKET
 // is configured, see config.php) or on local disk (the default). Returns
 // [webPath, error] - webPath is either a full S3 https:// URL or a
 // root-relative "/uploads/xxx.jpg" path, or null if no file was uploaded or
 // it failed.
+if (!function_exists('handle_image_upload')) {
 function handle_image_upload($file, $uploadDir, $prefix = 'photo') {
     if (!isset($file) || $file['error'] === UPLOAD_ERR_NO_FILE) {
         return [null, null];
@@ -94,7 +101,7 @@ function handle_image_upload($file, $uploadDir, $prefix = 'photo') {
 
     $filename = uniqid($prefix . '_', true) . '.' . $allowedMimes[$imageInfo['mime']];
 
-    if (AWS_S3_BUCKET !== '') {
+    if (defined('AWS_S3_BUCKET') && AWS_S3_BUCKET !== '') {
         return s3_put_object($filename, file_get_contents($file['tmp_name']), $imageInfo['mime']);
     }
 
@@ -107,9 +114,11 @@ function handle_image_upload($file, $uploadDir, $prefix = 'photo') {
 
     return ['/uploads/' . $filename, null];
 }
+}
 
 // Deletes a previously uploaded image, from S3 or local disk depending on
 // which one image_url points at.
+if (!function_exists('delete_image_file')) {
 function delete_image_file($imageUrl, $uploadDir) {
     if (!$imageUrl) {
         return;
@@ -125,6 +134,7 @@ function delete_image_file($imageUrl, $uploadDir) {
         }
     }
 }
+}
 
 // ============================================================================
 // S3 upload support (Signature Version 4, no AWS SDK/Composer dependency).
@@ -133,8 +143,7 @@ function delete_image_file($imageUrl, $uploadDir) {
 // byte-for-byte against AWS's own published SigV4 test suite.
 // ============================================================================
 
-// Builds the canonical request + the list of header names that were signed,
-// per the SigV4 spec: https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
+if (!function_exists('s3_canonical_request')) {
 function s3_canonical_request($method, $path, $headers, $payloadHash) {
     $sorted = $headers;
     ksort($sorted);
@@ -146,9 +155,9 @@ function s3_canonical_request($method, $path, $headers, $payloadHash) {
     $canonicalRequest = implode("\n", [$method, $path, '', $canonicalHeaders, $signedHeaders, $payloadHash]);
     return [$canonicalRequest, $signedHeaders];
 }
+}
 
-// Signs an S3 request and returns [host, headers] with the Authorization
-// header already filled in.
+if (!function_exists('s3_sign')) {
 function s3_sign($method, $bucket, $region, $key, $payload, $credentials) {
     $host = "$bucket.s3.$region.amazonaws.com";
     $amzDate = gmdate('Ymd\THis\Z');
@@ -186,36 +195,28 @@ function s3_sign($method, $bucket, $region, $key, $payload, $credentials) {
 
     return [$host, $headers];
 }
+}
 
-// Gets S3 credentials one of two ways: first by asking the EC2 instance's
-// own metadata service (IMDSv2) for whatever IAM role is attached - the
-// preferred way, since those credentials are temporary and rotated
-// automatically with nothing to leak. If there's no role to ask (e.g.
-// running locally, or an AWS Academy Learner Lab where you can't attach
-// one), falls back to explicit AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY/
-// AWS_SESSION_TOKEN from config.php (set as environment variables, e.g.
-// copied from a Learner Lab's "AWS Details" panel - never hardcoded/
-// committed). Returns null if neither is available, quickly (short
-// timeouts on the metadata service calls) so this never hangs a request.
+if (!function_exists('s3_instance_credentials')) {
 function s3_instance_credentials() {
     $credentials = s3_role_credentials();
     if ($credentials) {
         return $credentials;
     }
 
-    if (AWS_ACCESS_KEY_ID !== '' && AWS_SECRET_ACCESS_KEY !== '') {
+    if (defined('AWS_ACCESS_KEY_ID') && AWS_ACCESS_KEY_ID !== '' && AWS_SECRET_ACCESS_KEY !== '') {
         return [
             'access_key' => AWS_ACCESS_KEY_ID,
             'secret_key' => AWS_SECRET_ACCESS_KEY,
-            'token' => AWS_SESSION_TOKEN,
+            'token' => AWS_SESSION_TOKEN ?? '',
         ];
     }
 
     return null;
 }
+}
 
-// The IMDSv2 half of s3_instance_credentials() - split out so the fallback
-// logic above stays easy to follow.
+if (!function_exists('s3_role_credentials')) {
 function s3_role_credentials() {
     $tokenCtx = stream_context_create(['http' => [
         'method' => 'PUT',
@@ -259,9 +260,9 @@ function s3_role_credentials() {
         'token' => $creds['Token'],
     ];
 }
+}
 
-// Uploads $data to S3 under $key. Returns [publicUrl, error], matching the
-// shape handle_image_upload()'s callers already expect.
+if (!function_exists('s3_put_object')) {
 function s3_put_object($key, $data, $contentType) {
     $credentials = s3_instance_credentials();
     if (!$credentials) {
@@ -294,10 +295,9 @@ function s3_put_object($key, $data, $contentType) {
 
     return ["https://$host/$key", null];
 }
+}
 
-// Deletes an object previously uploaded to S3, given the URL stored in
-// image_url. Does nothing if the URL doesn't belong to the configured
-// bucket (defensive - shouldn't happen in practice).
+if (!function_exists('s3_delete_object')) {
 function s3_delete_object($url) {
     $host = AWS_S3_BUCKET . '.s3.' . AWS_S3_REGION . '.amazonaws.com';
     $prefix = "https://$host/";
@@ -325,9 +325,9 @@ function s3_delete_object($url) {
     ]]);
     @file_get_contents("https://$host/$key", false, $context);
 }
+}
 
-// Pulls the HTTP status code out of the $http_response_header array that
-// PHP's stream wrapper populates after a file_get_contents() HTTP request.
+if (!function_exists('s3_response_status')) {
 function s3_response_status($responseHeaders) {
     foreach ($responseHeaders as $line) {
         if (preg_match('#^HTTP/\S+\s+(\d+)#', $line, $m)) {
@@ -335,4 +335,92 @@ function s3_response_status($responseHeaders) {
         }
     }
     return 0;
+}
+}
+
+// ============================================================================
+// AWS Secrets Manager Helper
+// ============================================================================
+if (!function_exists('get_db_secret')) {
+function get_db_secret() {
+    $secretName = getenv('DB_SECRET_NAME') ?: 'shuttle-bus-ticketing-db-credentials';
+    $region = getenv('AWS_REGION') ?: (defined('AWS_S3_REGION') ? AWS_S3_REGION : 'us-east-1');
+
+    $awsBin = file_exists('/usr/bin/aws') ? '/usr/bin/aws' : '/usr/local/bin/aws';
+    
+    $cmd = sprintf(
+        '%s secretsmanager get-secret-value --secret-id %s --region %s --query SecretString --output text 2>&1',
+        $awsBin,
+        escapeshellarg($secretName),
+        escapeshellarg($region)
+    );
+
+    $output = @shell_exec($cmd);
+    if ($output === null || str_contains($output, 'ResourceNotFoundException') || str_contains($output, 'AccessDenied')) {
+        return null;
+    }
+
+    return json_decode(trim($output), true);
+}
+}
+
+// ============================================================================
+// AWS SNS Helper
+// ============================================================================
+if (!function_exists('send_sns_alert')) {
+function send_sns_alert($subject, $message) {
+    $topicArn = getenv('SNS_TOPIC_ARN') ?: (defined('SNS_TOPIC_ARN') ? SNS_TOPIC_ARN : '');
+    if ($topicArn === '') {
+        error_log('SNS Alert failed: SNS_TOPIC_ARN is empty.');
+        return false;
+    }
+
+    $region = getenv('AWS_REGION') ?: (defined('AWS_S3_REGION') ? AWS_S3_REGION : 'us-east-1');
+    $escapedSubject = escapeshellarg((string)$subject);
+    $escapedMessage = escapeshellarg((string)$message);
+    $escapedArn = escapeshellarg((string)$topicArn);
+    $escapedRegion = escapeshellarg((string)$region);
+
+    $awsBin = '/usr/bin/aws';
+    if (!file_exists($awsBin)) {
+        $awsBin = '/usr/local/bin/aws';
+    }
+
+    $cmd = sprintf(
+        '%s sns publish --topic-arn %s --subject %s --message %s --region %s 2>&1',
+        $awsBin,
+        $escapedArn,
+        $escapedSubject,
+        $escapedMessage,
+        $escapedRegion
+    );
+
+    $output = @shell_exec($cmd);
+    error_log('SNS Execution Output: ' . $output);
+    return $output !== null && str_contains($output, 'MessageId');
+}
+}
+
+// ============================================================================
+// CSRF Helper Functions
+// ============================================================================
+if (!function_exists('generate_csrf_token')) {
+function generate_csrf_token(){
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+}
+
+if (!function_exists('verify_csrf_token')) {
+function verify_csrf_token($token) {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], (string)$token);
+}
 }
