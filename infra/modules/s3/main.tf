@@ -52,7 +52,6 @@ resource "aws_s3_bucket_policy" "public_read" {
 resource "aws_s3_bucket_cors_configuration" "uploads" {
   bucket = var.bucket_name
 
-  depends_on = [terraform_data.uploads]
 
   cors_rule {
     allowed_headers = ["*"]
@@ -62,5 +61,5 @@ resource "aws_s3_bucket_cors_configuration" "uploads" {
   }
   
   depends_on = [null_resource.uploads]  
-  
+
 }
