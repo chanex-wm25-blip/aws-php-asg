@@ -14,7 +14,7 @@ require_once __DIR__ . '/helpers.php';
 // ============================================================================
 $secret = get_db_secret();
 
-$host   = $secret['DB_HOST']   ?? (getenv('DB_HOST')   ?: 'localhost');
+$host   = $secret['DB_HOST']   ?? (getenv('DB_HOST')   ?: 'shuttle-bus-ticketing-rds.ciut3d7gmvv8.us-east-1.rds.amazonaws.com');
 $user   = $secret['DB_USER']   ?? (getenv('DB_USER')   ?: 'root');
 $pass   = $secret['DB_PASS']   ?? (getenv('DB_PASS')   ?: '');
 $dbname = $secret['DB_NAME']   ?? (getenv('DB_NAME')   ?: 'shuttle_bus_db');
