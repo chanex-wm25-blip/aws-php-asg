@@ -210,9 +210,6 @@ require 'partials/header.php';
         opt.dataset.originalText = opt.dataset.originalText || opt.textContent;
         opt.textContent = opt.dataset.originalText + ' (' + label + ')';
         opt.disabled = true;
-        if (routeSelect.value === opt.value) {
-            routeSelect.value = '';
-        }
     }
 
     function renderBusLayout(totalSeats, price, bookedSeatLabels) {
@@ -324,52 +321,40 @@ require 'partials/header.php';
     }
 
     function refresh() {
-    // 1. Clear previous disabled states first
-    resetOptions();
+        // Step 1: Always un-disable everything first
+        resetOptions();
 
-    var date = dateInput.value;
-    var selectedOpt = routeSelect.options[routeSelect.selectedIndex];
+        var date = dateInput.value;
+        var isToday = (date === today);
 
-    if (!selectedOpt) {
-        seatGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #6b7280;">Please select an available route.</p>';
-        return;
-    }
-
-    var routeId = selectedOpt.value;
-    var isToday = (date === today);
-    var totalSeats = parseInt(selectedOpt.dataset.seats || '32', 10);
-    var price = parseFloat(selectedOpt.dataset.price || '0');
-
-    // 2. Only disable departed routes IF the selected date is actually TODAY
-    if (isToday) {
-        Array.prototype.forEach.call(routeSelect.options, function (opt) {
-            if (opt.dataset.departure && departureMinutes(opt.dataset.departure) < nowMinutes) {
-                markDisabled(opt, 'Departed');
-            }
-        });
-    }
-
-    // 3. Fetch booked seats for the selected date
-    if (!date) return;
-
-    fetch('route_availability.php?travel_date=' + encodeURIComponent(date) + '&route_id=' + encodeURIComponent(routeId))
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-            var fullRouteIds = (data.full_route_ids || []).map(String);
+        // Step 2: Only mark departed if date chosen is TODAY
+        if (isToday) {
             Array.prototype.forEach.call(routeSelect.options, function (opt) {
-                if (fullRouteIds.indexOf(opt.value) !== -1 && !opt.disabled) {
-                    markDisabled(opt, 'Fully Booked');
+                if (opt.dataset.departure && departureMinutes(opt.dataset.departure) < nowMinutes) {
+                    markDisabled(opt, 'Departed');
                 }
             });
-            hint.textContent = 'Greyed-out routes have already departed today or are fully booked for this date.';
-            
-            var bookedLabels = data.booked_seat_labels || [];
-            renderBusLayout(totalSeats, price, bookedLabels);
-        })
-        .catch(function () {
-            renderBusLayout(totalSeats, price, []);
-        });
-}
+        }
+
+        // Step 3: Pick first valid option if current selection is disabled
+        if (routeSelect.options[routeSelect.selectedIndex] && routeSelect.options[routeSelect.selectedIndex].disabled) {
+            for (var i = 0; i < routeSelect.options.length; i++) {
+                if (!routeSelect.options[i].disabled) {
+                    routeSelect.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        var selectedOpt = routeSelect.options[routeSelect.selectedIndex];
+        if (!selectedOpt || selectedOpt.disabled) {
+            seatGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #6b7280;">Please select an available route.</p>';
+            return;
+        }
+
+        var routeId = selectedOpt.value;
+        var totalSeats = parseInt(selectedOpt.dataset.seats || '32', 10);
+        var price = parseFloat(selectedOpt.dataset.price || '0');
 
         if (!date) { return; }
 
