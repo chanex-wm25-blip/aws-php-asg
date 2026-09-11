@@ -24,6 +24,19 @@ ALREADY_SEEDED=$(mysql "${MYSQL_ARGS[@]}" -N -e \
 
 if [ "$ALREADY_SEEDED" -gt 0 ]; then
   echo "shuttle_bus_db.users already exists - database already seeded, skipping import."
+  # Keep existing deployments compatible with the current ticket workflow.
+  HAS_SEAT_NUMBERS=$(mysql "${MYSQL_ARGS[@]}" -N -e \
+    "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='shuttle_bus_db' AND table_name='tickets' AND column_name='seat_numbers'")
+  if [ "$HAS_SEAT_NUMBERS" -eq 0 ]; then
+    mysql "${MYSQL_ARGS[@]}" -D "shuttle_bus_db" -e \
+      "ALTER TABLE tickets ADD COLUMN seat_numbers VARCHAR(100) NULL;"
+  fi
+  HAS_STATUS=$(mysql "${MYSQL_ARGS[@]}" -N -e \
+    "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='shuttle_bus_db' AND table_name='tickets' AND column_name='status'")
+  if [ "$HAS_STATUS" -eq 0 ]; then
+    mysql "${MYSQL_ARGS[@]}" -D "shuttle_bus_db" -e \
+      "ALTER TABLE tickets ADD COLUMN status ENUM('pending', 'confirmed', 'cancelled') NOT NULL DEFAULT 'pending';"
+  fi
   if [ -n "$BUCKET_NAME" ]; then
     # Fix image paths even if already seeded, in case we're rerunning to fix them
     S3_PREFIX="https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/uploads/"

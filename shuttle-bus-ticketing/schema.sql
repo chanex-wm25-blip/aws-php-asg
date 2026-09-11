@@ -40,7 +40,9 @@ CREATE TABLE tickets (
   route_id INT NOT NULL,
   travel_date DATE NOT NULL,
   seat_quantity INT NOT NULL DEFAULT 1,
+  seat_numbers VARCHAR(100) NULL,
   total_price DECIMAL(10,2) NOT NULL,
+  status ENUM('pending', 'confirmed', 'cancelled') NOT NULL DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (route_id) REFERENCES routes(id)

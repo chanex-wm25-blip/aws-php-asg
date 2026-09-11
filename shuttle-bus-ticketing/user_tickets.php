@@ -16,9 +16,19 @@ if ($uid) {
         JOIN routes r ON r.id = t.route_id
         WHERE t.user_id = ?
         ORDER BY t.travel_date DESC
-    ") or die($conn->error);
+    ");
+    if (!$stmt) {
+        error_log('User tickets query prepare failed: ' . $conn->error);
+        http_response_code(500);
+        die('Unable to load your tickets. Check the server error log.');
+    }
     $stmt->bind_param('i', $uid);
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        error_log('User tickets query execute failed: ' . $stmt->error);
+        $stmt->close();
+        http_response_code(500);
+        die('Unable to load your tickets. Check the server error log.');
+    }
     $myTickets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 }
@@ -30,7 +40,7 @@ require 'partials/header.php';
     <h2 style="font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-bottom: 5px;">My Tickets</h2>
     <p style="color: #6b7280; font-size: 0.95rem; margin-bottom: 25px;">Show ticket's QR code at the entrance to check in.</p>
 
-    <?php if (empty($myTickets)): ?>s
+    <?php if (empty($myTickets)): ?>
         <div class="empty-state" style="background: #fff; padding: 40px; border-radius: 12px; text-align: center; border: 1px solid #e5e7eb;">
             <div class="empty-state-icon" style="font-size: 2.5rem; margin-bottom: 10px;">&#128196;</div>
             <p style="color: #4b5563; font-size: 1rem;">You haven't booked any tickets yet.</p>
