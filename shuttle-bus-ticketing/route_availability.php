@@ -23,8 +23,8 @@ if (!$result) {
 }
 $routes = $result->fetch_all(MYSQLI_ASSOC);
 
-$stmt = $conn->prepare('SELECT route_id, COALESCE(SUM(seat_quantity), 0) AS booked FROM tickets WHERE travel_date = ? AND id != ? GROUP BY route_id');
-$stmt->bind_param('si', $date, $excludeId);
+$stmt = $conn->prepare('SELECT route_id, COALESCE(SUM(seat_quantity), 0) AS booked FROM tickets WHERE travel_date = ? GROUP BY route_id');
+$stmt->bind_param('s', $date);
 $stmt->execute();
 $bookedByRoute = [];
 foreach ($stmt->get_result()->fetch_all(MYSQLI_ASSOC) as $row) {
