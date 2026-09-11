@@ -160,7 +160,7 @@ require 'partials/header.php';
     <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; background: #e5e7eb; border-radius: 4px; display:inline-block;"></span> Taken</div>
 </div>
 
-<!-- Bus Seating Layout Container (2+2 with center aisle) -->
+<!-- Bus Seating Layout Container -->
 <div id="seat-grid-container" style="display: grid; grid-template-columns: 45px 45px 25px 45px 45px; gap: 8px; justify-content: center; margin-bottom: 20px; background: #f9fafb; padding: 20px; border-radius: 12px; border: 1px solid #e5e7eb;">
     <!-- Rendered dynamically -->
 </div>
@@ -321,13 +321,13 @@ require 'partials/header.php';
     }
 
     function refresh() {
-        // Step 1: Always un-disable everything first
+        // Step 1: Wipe clean previous disabled states
         resetOptions();
 
         var date = dateInput.value;
         var isToday = (date === today);
 
-        // Step 2: Only mark departed if date chosen is TODAY
+        // Step 2: Only disable departed times if selected date is EXACTLY today
         if (isToday) {
             Array.prototype.forEach.call(routeSelect.options, function (opt) {
                 if (opt.dataset.departure && departureMinutes(opt.dataset.departure) < nowMinutes) {
@@ -336,8 +336,8 @@ require 'partials/header.php';
             });
         }
 
-        // Step 3: Pick first valid option if current selection is disabled
-        if (routeSelect.options[routeSelect.selectedIndex] && routeSelect.options[routeSelect.selectedIndex].disabled) {
+        // Step 3: Pick first valid enabled option if current choice is empty or disabled
+        if (routeSelect.selectedIndex === -1 || routeSelect.options[routeSelect.selectedIndex].disabled) {
             for (var i = 0; i < routeSelect.options.length; i++) {
                 if (!routeSelect.options[i].disabled) {
                     routeSelect.selectedIndex = i;
@@ -358,6 +358,7 @@ require 'partials/header.php';
 
         if (!date) { return; }
 
+        // Step 4: Fetch booking data for the selected date
         fetch('route_availability.php?travel_date=' + encodeURIComponent(date) + '&route_id=' + encodeURIComponent(routeId))
             .then(function (res) { return res.json(); })
             .then(function (data) {
