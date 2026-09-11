@@ -151,9 +151,29 @@ jobs:
         run: |
           set -euo pipefail
 
+          RUNNING_IDS=$(aws ec2 describe-instances \
+            --filters "Name=tag:App,Values=${{ env.APP_TAG }}" "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[].InstanceId" --output text)
+
+          if [ -z "$RUNNING_IDS" ]; then
+            echo "No running instances found for App=${{ env.APP_TAG }}."
+            exit 1
+          fi
+
+          IDS_CSV=$(echo "$RUNNING_IDS" | tr '\t ' ',' | sed 's/,,*/,/g; s/^,//; s/,$//')
+          ONLINE_IDS=$(aws ssm describe-instance-information \
+            --filters "Key=InstanceIds,Values=$IDS_CSV" \
+            --query "InstanceInformationList[?PingStatus=='Online'].InstanceId" --output text)
+
+          if [ -z "$ONLINE_IDS" ]; then
+            echo "No SSM-online instances found among running App=${{ env.APP_TAG }} instances."
+            exit 1
+          fi
+
+          echo "Deploying only to SSM-online instances: $ONLINE_IDS"
           COMMAND_ID=$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
-            --targets "Key=tag:App,Values=${{ env.APP_TAG }}" \
+            --instance-ids $ONLINE_IDS \
             --comment "${{ env.APP_TAG }} deploy" \
             --parameters '{"commands":[
               "cloud-init status --wait",
@@ -188,8 +208,23 @@ jobs:
 
           OVERALL_SUCCESS=true
           for id in $TARGET_IDS; do
-            aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$id" || true
-            STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$id" --query "Status" --output text)
+            STATUS="Pending"
+            for attempt in $(seq 1 60); do
+              STATUS=$(aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" \
+                --instance-id "$id" \
+                --query "Status" --output text 2>/dev/null || echo "Pending")
+              case "$STATUS" in
+                Pending|InProgress|Delayed)
+                  echo "Instance $id command status: $STATUS (attempt $attempt/60)"
+                  sleep 10
+                  ;;
+                *)
+                  break
+                  ;;
+              esac
+            done
+
             aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$id"
             if [ "$STATUS" != "Success" ]; then
               OVERALL_SUCCESS=false
