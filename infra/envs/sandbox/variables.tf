@@ -32,9 +32,9 @@ variable "private_subnet_cidrs" {
 }
 
 variable "instance_type" {
-  description = "EC2 instance type for app servers. Bump this later if t3.micro is insufficient - no other changes needed."
+  description = "EC2 instance type for app servers. Bump this later if t3.medium is insufficient - no other changes needed."
   type        = string
-  default     = "t3.micro"
+  default     = "t3.medium"
 }
 
 variable "instance_profile_name" {
@@ -79,7 +79,7 @@ variable "health_check_path" {
 
 variable "asg_min_size" {
   type    = number
-  default = 2
+  default = 1
 }
 
 variable "asg_max_size" {
