@@ -55,39 +55,20 @@ require 'partials/header.php';
                     'cancelled' => '#fee2e2; color: #991b1b;'
                 ];
                 $style = $bgColors[$status] ?? '#f3f4f6; color: #374151;';
-
-                $rawSeatStr = str_replace(['|', ' '], [',', ''], $t['seat_numbers']);
-                $seats = array_filter(array_map('trim', explode(',', $rawSeatStr)));
-
-                    if (empty($seats) && (int)$t['seat_quantity'] > 0) {
-                         $seats = [];
-                         for ($i = 1; $i <= (int)$t['seat_quantity']; $i++) {
-                            $seats[] = $i . 'A';
-                   }
-                }
-
-                $totalSeatsInTicket = count($seats);
-                $pricePerSeat = $totalSeatsInTicket > 0 ? ($t['total_price'] / $totalSeatsInTicket) : $t['total_price'];
-
-                foreach ($seats as $index => $seatNum):
-                    $ticketIndex = $index + 1;
-                    $displaySeat = (is_numeric($seatNum) && (int)$seatNum <= 32) ? $seatNum . 'A' : $seatNum;
-                    $uniqueHash = md5('ticket_' . $t['id'] . '_seat_' . $displaySeat);
+                $displaySeats = htmlspecialchars($t['seat_numbers']);
 
                     $qrData = sprintf(
                         "TicketID:%d|Route:%s|Date:%s|Seat:%s|User:%d",
                         $t['id'],
                         $t['route_name'],
                         $t['travel_date'],
-                        $displaySeat,
+                        $displaySeats,
                         $uid
                     );
                     $qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($qrData);
             ?>
-            <div class="card" style="border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: nowrap;">
-                
-                <!-- Left: QR Code & Details -->
-                <div style="display: flex; align-items: center; gap: 20px; flex: 1; min-width: 0;">
+            <div class="card" style="border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 20px; flex: 1;">
                     <?php if ($status === 'confirmed'): ?>
                         <img src="<?= $qrApiUrl ?>" alt="Boarding QR Code" style="width: 110px; height: 110px; flex-shrink: 0; border-radius: 8px; border: 1px solid var(--border, #e5e7eb); padding: 6px; background: #fff;" title="Show this to the driver">
                     <?php else: ?>
@@ -98,12 +79,12 @@ require 'partials/header.php';
 
                     <div style="min-width: 0;">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap;">
-                            <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Ticket <?= $ticketIndex ?> of <?= $totalSeatsInTicket ?> &middot; <?= htmlspecialchars($t['route_name']) ?></h3>
+                            <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Ticket #<?= (int)$t['id'] ?> &middot; <?= htmlspecialchars($t['route_name']) ?></h3>
                             <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; background-color: <?= $style ?>">
                                 <?= htmlspecialchars($status) ?>
                             </span>
                         </div>
-                        <p style="margin: 0 0 4px 0; font-size: 1rem; font-weight: 600; color: #a855f7;">Seat <?= htmlspecialchars($displaySeat) ?></p>
+                        <p style="margin: 0 0 4px 0; font-size: 1rem; font-weight: 600; color: #a855f7;">Seat(s): <?= $displaySeats ?></p>
                         <p style="margin: 0 0 4px 0; font-size: 0.85rem; opacity: 0.85;">Travel Date: <strong><?= htmlspecialchars($t['travel_date']) ?></strong> (Departs <?= htmlspecialchars($t['departure_time']) ?>)</p>
                         <p style="margin: 0; font-size: 0.75rem; opacity: 0.5; font-family: monospace; word-break: break-all; max-width: 320px;"><?= htmlspecialchars($uniqueHash) ?></p>
                     </div>
@@ -127,10 +108,7 @@ require 'partials/header.php';
                 </div>
 
             </div>
-            <?php 
-                endforeach; 
-            endforeach; 
-            ?>
+            <?php endforeach; ?>
         </div>
     <?php endif; ?>
 </div>

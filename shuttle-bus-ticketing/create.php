@@ -271,6 +271,7 @@ require 'partials/header.php';
                         btn.style.color = '#ffffff';
                         btn.style.borderColor = '#49afdb';
                     }
+                    updateTotals(price);
 
                     btn.addEventListener('click', function () {
                         var lbl = this.dataset.label;
