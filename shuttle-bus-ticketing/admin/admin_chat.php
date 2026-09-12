@@ -6,10 +6,10 @@ require_admin();
 
 // Get list of users who have sent support messages
 $users = $conn->query("
-    SELECT DISTINCT u.id, u.name, u.email 
-    FROM chat_messages cm 
-    JOIN users u ON u.id = cm.user_id 
-    ORDER BY cm.id DESC
+    SELECT id, name, email 
+    FROM users 
+    WHERE role != 'admin' 
+    ORDER BY name ASC
 ")->fetch_all(MYSQLI_ASSOC);
 
 $activeUserId = (int)($_GET['user_id'] ?? ($users[0]['id'] ?? 0));
