@@ -104,12 +104,12 @@ require 'partials/header.php';
                 <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-end; flex-shrink: 0;">
                     <span style="font-size: 1rem; font-weight: 600;">RM<?= number_format($pricePerSeat, 2) ?></span>
                     <?php if ($status !== 'cancelled'): ?>
-                        <div style="display: flex; gap: 8px;">
-                            <a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$t['id'] ?>" style="width: auto; padding: 6px 12px; font-size: 0.85rem;">Edit Booking</a>
-                            <form action="delete.php" method="post" style="display:inline" onsubmit="return confirm('Cancel this ticket?');">
+                        <div style="display: flex; gap: 8px; align-items: center; justify-content: flex-end; white-space: nowrap;">
+                            <a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$t['id'] ?>" style="padding: 6px 12px; font-size: 0.85rem; display: inline-flex; align-items: center; height: 32px; box-sizing: border-box;">Edit Booking</a>
+                            <form action="delete.php" method="post" style="display: inline-flex; margin: 0;" onsubmit="return confirm('Cancel this ticket?');">
                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf_token()) ?>">
                                 <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
-                                <button type="submit" class="btn-small btn-danger" style="padding: 6px 12px; font-size: 0.85rem;">Cancel</button>
+                                <button type="submit" class="btn-small btn-danger" style="padding: 6px 12px; font-size: 0.85rem; height: 32px; box-sizing: border-box;">Cancel</button>
                             </form>
                         </div>
                     <?php else: ?>
