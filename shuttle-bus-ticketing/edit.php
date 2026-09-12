@@ -19,7 +19,6 @@ if (!$ticket) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // 1. Verify CSRF Token
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
         die('CSRF token validation failed.');
     }
@@ -28,7 +27,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $seat_quantity = (int)($_POST['seat_quantity'] ?? 0);
     $seat_numbers  = trim($_POST['seat_numbers'] ?? '');
 
-    // 2. Validate basic input and single-transaction limit of 3 seats
     if ($travel_date === '' || $seat_quantity < 1 || $seat_quantity > 3) {
         $error = 'Please choose a travel date and between 1 to 3 seats.';
     } elseif ($travel_date < date('Y-m-d')) {
@@ -38,7 +36,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $conn->begin_transaction();
 
-        // 3. Enforce per-user limit (Total 3 seats max across account for this date, excluding this ticket)
         $stmtUserLock = $conn->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE');
         $stmtUserLock->bind_param('i', $uid);
         $stmtUserLock->execute();
@@ -95,11 +92,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $pageTitle = 'Edit Ticket';
 require 'partials/header.php';
 ?>
-<div class="form-card" style="max-width: 600px; margin: 20px auto;">
+<div class="card form-card" style="max-width: 600px; margin: 20px auto; padding: 24px; border-radius: 12px;">
 <h1>Edit Ticket</h1>
 <?php if ($error): ?><p class="alert alert-error"><?= htmlspecialchars($error) ?></p><?php endif; ?>
 <form method="post">
-<!-- CSRF Hidden Field -->
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf_token()) ?>">
 <input type="hidden" name="id" value="<?= (int)$ticket['id'] ?>">
 <label>Route <input type="text" value="<?= htmlspecialchars($ticket['route_name']) ?> (departs <?= htmlspecialchars($ticket['departure_time']) ?>)" disabled></label>
@@ -107,13 +103,12 @@ require 'partials/header.php';
 <p class="form-hint" id="route-availability-hint"></p>
 
 <div style="display: flex; gap: 20px; align-items: center; margin: 20px 0 15px 0; font-size: 0.9rem;">
-    <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border: 1px solid #d1d5db; border-radius: 4px; background: #fff; display:inline-block;"></span> Available</div>
+    <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border: 1px solid var(--border, #d1d5db); border-radius: 4px; background: var(--bg-card, #fff); display:inline-block;"></span> Available</div>
     <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; background: #49afdb; border-radius: 4px; display:inline-block;"></span> Selected</div>
     <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; background: #e5e7eb; border-radius: 4px; display:inline-block;"></span> Taken</div>
 </div>
 
-<!-- Bus Seating Layout Container (2+2 with center aisle) -->
-<div id="seat-grid-container" style="display: grid; grid-template-columns: 45px 45px 25px 45px 45px; gap: 8px; justify-content: center; margin-bottom: 20px; background: #f9fafb; padding: 20px; border-radius: 12px; border: 1px solid #e5e7eb;"></div>
+<div id="seat-grid-container" style="display: grid; grid-template-columns: 45px 45px 25px 45px 45px; gap: 8px; justify-content: center; margin-bottom: 20px; background: rgba(0,0,0,0.03); padding: 20px; border-radius: 12px; border: 1px solid var(--border, #e5e7eb);"></div>
 
 <input type="hidden" name="seat_quantity" id="seat-quantity" value="<?= (int)$ticket['seat_quantity'] ?>">
 <input type="hidden" name="seat_numbers" id="seat-numbers" value="<?= htmlspecialchars($ticket['seat_numbers'] ?? '') ?>">
@@ -139,8 +134,23 @@ require 'partials/header.php';
     var excludeTicketId = <?= (int)$ticket['id'] ?>;
     var totalSeats = <?= (int)$ticket['total_seats'] ?>;
     var price = <?= (float)$ticket['price'] ?>;
-    var initialSeatNumbers = "<?= htmlspecialchars($ticket['seat_numbers'] ?? '') ?>".split(',').map(s => s.trim()).filter(Boolean);
-    var selectedSeatLabels = initialSeatNumbers.length > 0 ? initialSeatNumbers : ['1A'];
+
+    // Helper: Map single integers (1, 2) to (1A, 1B)
+    function formatSeatLabel(rawSeat) {
+        var str = String(rawSeat).trim();
+        if (!isNaN(str) && parseInt(str) > 0) {
+            var num = parseInt(str);
+            var r = Math.ceil(num / 4);
+            var letters = ['A', 'B', 'C', 'D'];
+            var l = letters[(num - 1) % 4];
+            return r + l;
+        }
+        return str;
+    }
+
+    var rawSeats = "<?= htmlspecialchars($ticket['seat_numbers'] ?? '') ?>".split(',').map(s => s.trim()).filter(Boolean);
+    var selectedSeatLabels = rawSeats.map(formatSeatLabel);
+    if (selectedSeatLabels.length === 0) { selectedSeatLabels = ['1A']; }
 
     var today = '<?= date('Y-m-d') ?>';
     var nowMinutes = <?= (int)date('H') * 60 + (int)date('i') ?>;
@@ -150,10 +160,15 @@ require 'partials/header.php';
     })() ?>;
 
     function renderBusLayout(bookedSeatLabels) {
+        // Standardize booked seat labels from DB to 1A, 1B format
+        bookedSeatLabels = bookedSeatLabels.map(formatSeatLabel);
         seatGrid.innerHTML = '';
         var rows = Math.ceil(totalSeats / 4);
         var seatCount = 0;
         var letters = ['A', 'B', 'C', 'D'];
+
+        // Remove any selected seats that are already taken by others on this date
+        selectedSeatLabels = selectedSeatLabels.filter(lbl => !bookedSeatLabels.includes(lbl));
 
         for (var r = 1; r <= rows; r++) {
             for (var gridCol = 0; gridCol < 5; gridCol++) {
@@ -258,7 +273,7 @@ require 'partials/header.php';
 
         if (!date) { return; }
 
-        fetch('route_availability.php?travel_date=' + encodeURIComponent(date) + '&exclude_ticket_id=' + excludeTicketId)
+        fetch('route_availability.php?route_id=' + routeId + '&travel_date=' + encodeURIComponent(date) + '&exclude_ticket_id=' + excludeTicketId)
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 var fullRouteIds = (data.full_route_ids || []).map(String);

@@ -52,19 +52,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$pageTitle = 'Mock Payment Gateway';
+$pageTitle = 'Payment Gateway';
 require 'partials/header.php';
 ?>
-<div class="form-card" style="max-width: 500px; margin: 40px auto;">
+<div class="card form-card" style="max-width: 500px; margin: 40px auto; padding: 24px; border-radius: 12px;">
     <h2>Payment Checkout</h2>
-    <p style="color: #6b7280; margin-bottom: 20px;">Complete your transaction for <strong><?= htmlspecialchars($ticket['route_name']) ?></strong>.</p>
+    <p style="opacity: 0.8; margin-bottom: 20px;">Complete your transaction for <strong><?= htmlspecialchars($ticket['route_name']) ?></strong>.</p>
 
     <?php if ($error): ?><p class="alert alert-error"><?= htmlspecialchars($error) ?></p><?php endif; ?>
 
-    <div style="background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 20px;">
+    <div style="background: rgba(0,0,0,0.04); padding: 15px; border-radius: 8px; border: 1px solid var(--border, #e5e7eb); margin-bottom: 20px;">
         <p style="margin: 0 0 8px 0;"><strong>Seat(s):</strong> <?= htmlspecialchars($seatDisplay) ?></p>
         <p style="margin: 0 0 8px 0;"><strong>Travel Date:</strong> <?= htmlspecialchars($ticket['travel_date']) ?></p>
-        <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #6b21a8;">Total Amount: RM<?= number_format($ticket['total_price'], 2) ?></p>
+        <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #a855f7;">Total Amount: RM<?= number_format($ticket['total_price'], 2) ?></p>
     </div>
 
     <form method="post">
@@ -72,6 +72,6 @@ require 'partials/header.php';
         <button type="submit" class="btn" style="background: #2563eb; color: white; width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer;">Pay RM<?= number_format($ticket['total_price'], 2) ?></button>
     </form>
 
-    <p style="margin-top: 15px; text-align: center;"><a href="user_tickets.php" style="color: #6b7280; font-size: 0.85rem; text-decoration: none;">Cancel / Pay Later</a></p>
+    <p style="margin-top: 15px; text-align: center;"><a href="user_tickets.php" style="opacity: 0.7; font-size: 0.85rem; text-decoration: none;">Cancel / Pay Later</a></p>
 </div>
 <?php require 'partials/footer.php'; ?>
