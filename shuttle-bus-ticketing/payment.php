@@ -24,6 +24,15 @@ if (!$ticket) {
     exit;
 }
 
+$seatDisplay = trim((string)($ticket['seat_numbers'] ?? ''));
+if ($seatDisplay === '') {
+    $seatDisplay = (string)$ticket['seat_quantity'];
+}
+$seatDisplay = implode(', ', array_map(function ($seat) {
+    $seat = trim($seat);
+    return is_numeric($seat) && (int)$seat <= 32 ? (int)$seat . 'A' : $seat;
+}, explode(',', $seatDisplay)));
+
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -53,7 +62,7 @@ require 'partials/header.php';
     <?php if ($error): ?><p class="alert alert-error"><?= htmlspecialchars($error) ?></p><?php endif; ?>
 
     <div style="background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 20px;">
-        <p style="margin: 0 0 8px 0;"><strong>Seats:</strong> <?= htmlspecialchars($ticket['seat_numbers'] ?? $ticket['seat_quantity']) ?></p>
+        <p style="margin: 0 0 8px 0;"><strong>Seat(s):</strong> <?= htmlspecialchars($seatDisplay) ?></p>
         <p style="margin: 0 0 8px 0;"><strong>Travel Date:</strong> <?= htmlspecialchars($ticket['travel_date']) ?></p>
         <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #6b21a8;">Total Amount: RM<?= number_format($ticket['total_price'], 2) ?></p>
     </div>

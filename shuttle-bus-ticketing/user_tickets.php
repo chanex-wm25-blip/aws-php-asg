@@ -105,7 +105,7 @@ require 'partials/header.php';
                     <span style="font-size: 1rem; font-weight: 600;">RM<?= number_format($pricePerSeat, 2) ?></span>
                     <?php if ($status !== 'cancelled'): ?>
                         <div style="display: flex; gap: 8px;">
-                            <a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$t['id'] ?>" style="padding: 6px 12px; font-size: 0.85rem;">Edit</a>
+                            <a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$t['id'] ?>" style="width: auto; padding: 6px 12px; font-size: 0.85rem;">Edit Booking</a>
                             <form action="delete.php" method="post" style="display:inline" onsubmit="return confirm('Cancel this ticket?');">
                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf_token()) ?>">
                                 <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
