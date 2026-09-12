@@ -4,12 +4,13 @@ require '../auth.php';
 require '../helpers.php';
 require_admin();
 
-// Get list of users who have sent support messages
+// Get users who have sent support messages, excluding admin accounts.
 $users = $conn->query("
-    SELECT id, name, email 
-    FROM users 
-    WHERE role != 'admin' 
-    ORDER BY name ASC
+    SELECT DISTINCT u.id, u.name, u.email
+    FROM users u
+    JOIN chat_messages cm ON cm.user_id = u.id
+    WHERE u.is_admin = 0
+    ORDER BY u.name ASC
 ")->fetch_all(MYSQLI_ASSOC);
 
 $activeUserId = (int)($_GET['user_id'] ?? ($users[0]['id'] ?? 0));
