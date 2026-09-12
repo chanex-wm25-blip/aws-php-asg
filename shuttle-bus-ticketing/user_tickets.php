@@ -37,13 +37,13 @@ $pageTitle = 'My Tickets - Campus Shuttle Bus Ticketing';
 require 'partials/header.php';
 ?>
 <div style="max-width: 800px; margin: 30px auto; padding: 0 20px;">
-    <h2 style="font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-bottom: 5px;">My Tickets</h2>
-    <p style="color: #6b7280; font-size: 0.95rem; margin-bottom: 25px;">Show ticket's QR code at the entrance to check in.</p>
+    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 5px;">My Tickets</h2>
+    <p style="opacity: 0.8; font-size: 0.95rem; margin-bottom: 25px;">Show ticket's QR code at the entrance to check in.</p>
 
     <?php if (empty($myTickets)): ?>
-        <div class="empty-state" style="background: #fff; padding: 40px; border-radius: 12px; text-align: center; border: 1px solid #e5e7eb;">
+        <div class="card empty-state" style="padding: 40px; border-radius: 12px; text-align: center;">
             <div class="empty-state-icon" style="font-size: 2.5rem; margin-bottom: 10px;">&#128196;</div>
-            <p style="color: #4b5563; font-size: 1rem;">You haven't booked any tickets yet.</p>
+            <p style="font-size: 1rem; opacity: 0.8;">You haven't booked any tickets yet.</p>
         </div>
     <?php else: ?>
         <div style="display: flex; flex-direction: column; gap: 20px;">
@@ -74,34 +74,34 @@ require 'partials/header.php';
                     );
                     $qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($qrData);
             ?>
-            <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+            <div class="card" style="border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
                 
                 <!-- Left: QR Code & Details -->
                 <div style="display: flex; align-items: center; gap: 20px;">
                     <?php if ($status === 'confirmed'): ?>
-                        <img src="<?= $qrApiUrl ?>" alt="Boarding QR Code" style="width: 120px; height: 120px; border-radius: 8px; border: 1px solid #e5e7eb; padding: 6px; background: #fff;" title="Show this to the driver">
+                        <img src="<?= $qrApiUrl ?>" alt="Boarding QR Code" style="width: 120px; height: 120px; border-radius: 8px; border: 1px solid var(--border, #e5e7eb); padding: 6px; background: #fff;" title="Show this to the driver">
                     <?php else: ?>
-                        <div style="width: 120px; height: 120px; border-radius: 8px; border: 1px solid #e5e7eb; background: #f9fafb; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 0.8rem; text-align: center; padding: 10px;">
+                        <div style="width: 120px; height: 120px; border-radius: 8px; border: 1px solid var(--border, #e5e7eb); background: rgba(0,0,0,0.03); display: flex; align-items: center; justify-content: center; opacity: 0.6; font-size: 0.8rem; text-align: center; padding: 10px;">
                             QR Available when Confirmed
                         </div>
                     <?php endif; ?>
 
                     <div>
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-                            <h3 style="font-size: 1.1rem; font-weight: 700; color: #1f2937; margin: 0;">Ticket <?= $ticketIndex ?> of <?= $totalSeatsInTicket ?> &middot; <?= htmlspecialchars($t['route_name']) ?></h3>
+                            <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0;">Ticket <?= $ticketIndex ?> of <?= $totalSeatsInTicket ?> &middot; <?= htmlspecialchars($t['route_name']) ?></h3>
                             <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; background-color: <?= $style ?>">
                                 <?= htmlspecialchars($status) ?>
                             </span>
                         </div>
-                        <p style="margin: 0 0 4px 0; font-size: 1rem; font-weight: 600; color: #6b21a8;">Seat <?= htmlspecialchars($seatNum) ?></p>
-                        <p style="margin: 0 0 4px 0; font-size: 0.85rem; color: #4b5563;">Travel Date: <strong><?= htmlspecialchars($t['travel_date']) ?></strong> (Departs <?= htmlspecialchars($t['departure_time']) ?>)</p>
-                        <p style="margin: 0; font-size: 0.75rem; color: #9ca3af; font-family: monospace; word-break: break-all; max-width: 320px;"><?= htmlspecialchars($uniqueHash) ?></p>
+                        <p style="margin: 0 0 4px 0; font-size: 1rem; font-weight: 600; color: #a855f7;">Seat <?= htmlspecialchars($seatNum) ?></p>
+                        <p style="margin: 0 0 4px 0; font-size: 0.85rem; opacity: 0.85;">Travel Date: <strong><?= htmlspecialchars($t['travel_date']) ?></strong> (Departs <?= htmlspecialchars($t['departure_time']) ?>)</p>
+                        <p style="margin: 0; font-size: 0.75rem; opacity: 0.5; font-family: monospace; word-break: break-all; max-width: 320px;"><?= htmlspecialchars($uniqueHash) ?></p>
                     </div>
                 </div>
 
                 <!-- Right: Price & Actions -->
                 <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-end;">
-                    <span style="font-size: 1rem; font-weight: 600; color: #1f2937;">RM<?= number_format($pricePerSeat, 2) ?></span>
+                    <span style="font-size: 1rem; font-weight: 600;">RM<?= number_format($pricePerSeat, 2) ?></span>
                     <?php if ($status !== 'cancelled'): ?>
                         <div style="display: flex; gap: 8px;">
                             <a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$t['id'] ?>" style="padding: 6px 12px; font-size: 0.85rem;">Edit</a>
@@ -112,7 +112,7 @@ require 'partials/header.php';
                             </form>
                         </div>
                     <?php else: ?>
-                        <span style="color: #9ca3af; font-size: 0.85rem;">Cancelled</span>
+                        <span style="opacity: 0.5; font-size: 0.85rem;">Cancelled</span>
                     <?php endif; ?>
                 </div>
 
