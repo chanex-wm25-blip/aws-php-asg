@@ -18,30 +18,42 @@ require 'partials/header.php';
 </div>
 
 <script>
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 async function fetchMessages() {
-    const res = await fetch('chat_api.php');
-    const data = await res.json();
-    const box = document.getElementById('chat-box');
-    box.innerHTML = (data.messages || []).map(m => `
-        <div style="text-align: ${m.sender === 'user' ? 'right' : 'left'}; margin-bottom: 10px;">
-            <span style="background: ${m.sender === 'user' ? '#49afdb' : '#e5e7eb'}; color: ${m.sender === 'user' ? '#fff' : '#000'}; padding: 8px 14px; border-radius: 12px; display: inline-block;">
-                ${m.message}
-            </span>
-            <small style="display:block; font-size: 0.7rem; color: #888; margin-top: 2px;">${m.time}</small>
-        </div>
-    `).join('');
+    try {
+        const res = await fetch('chat_api.php');
+        const data = await res.json();
+        const box = document.getElementById('chat-box');
+        box.innerHTML = (data.messages || []).map(m => `
+            <div style="text-align: ${m.sender === 'user' ? 'right' : 'left'}; margin-bottom: 10px;">
+                <span style="background: ${m.sender === 'user' ? '#49afdb' : '#e5e7eb'}; color: ${m.sender === 'user' ? '#fff' : '#000'}; padding: 8px 14px; border-radius: 12px; display: inline-block;">
+                    ${escapeHtml(m.message)}
+                </span>
+                <small style="display:block; font-size: 0.7rem; color: #888; margin-top: 2px;">${escapeHtml(m.time)}</small>
+            </div>
+        `).join('');
+        box.scrollTop = box.scrollHeight;
+    } catch (err) {
+        console.error('Failed to load chat messages:', err);
+    }
 }
 
 document.getElementById('send-btn').addEventListener('click', async () => {
     const input = document.getElementById('chat-input');
-    if (!input.value.trim()) return;
+    const msg = input.value.trim();
+    if (!msg) return;
 
+    input.value = '';
     await fetch('chat_api.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input.value })
+        body: JSON.stringify({ message: msg })
     });
-    input.value = '';
     fetchMessages();
 });
 
