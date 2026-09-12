@@ -24,14 +24,23 @@ if (!$ticket) {
     exit;
 }
 
-$seatDisplay = trim((string)($ticket['seat_numbers'] ?? ''));
-if ($seatDisplay === '') {
-    $seatDisplay = (string)$ticket['seat_quantity'];
+$rawSeats = trim((string)($ticket['seat_numbers'] ?? ''));
+if ($rawSeats === '') {
+    $rawSeats = (string)$ticket['seat_quantity'];
 }
-$seatDisplay = implode(', ', array_map(function ($seat) {
-    $seat = trim($seat);
-    return is_numeric($seat) && (int)$seat <= 32 ? (int)$seat . 'A' : $seat;
-}, explode(',', $seatDisplay)));
+
+$seatArray = array_filter(array_map('trim', explode(',', $rawSeats)));
+$formattedSeats = array_map(function ($seat) {
+    if (is_numeric($seat) && (int)$seat > 0) {
+        $num = (int)$seat;
+        $r = Math.ceil($num / 4);
+        $letters = ['A', 'B', 'C', 'D'];
+        return $r . $letters[($num - 1) % 4];
+    }
+    return $seat;
+}, $seatArray);
+
+$seatDisplay = implode(', ', $formattedSeats);
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -52,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$pageTitle = 'Payment Gateway';
+$pageTitle = 'Mock Payment Gateway';
 require 'partials/header.php';
 ?>
 <div class="card form-card" style="max-width: 500px; margin: 40px auto; padding: 24px; border-radius: 12px;">
