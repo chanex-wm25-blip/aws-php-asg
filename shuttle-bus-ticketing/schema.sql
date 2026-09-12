@@ -68,6 +68,16 @@ CREATE TABLE contact_messages (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE chat_messages (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  sender ENUM('user', 'admin') NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  INDEX idx_chat_messages_user_id (user_id)
+);
+
 -- PHP sessions are stored here instead of on local disk, so that any EC2
 -- instance behind an ALB/ASG can read a session written by a different
 -- instance. See auth.php's DbSessionHandler.
