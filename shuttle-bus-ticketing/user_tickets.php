@@ -36,14 +36,14 @@ if ($uid) {
 $pageTitle = 'My Tickets - Campus Shuttle Bus Ticketing';
 require 'partials/header.php';
 ?>
-<div style="max-width: 800px; margin: 30px auto; padding: 0 20px;">
-    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 5px;">My Tickets</h2>
-    <p style="opacity: 0.8; font-size: 0.95rem; margin-bottom: 25px;">Show ticket's QR code at the entrance to check in.</p>
+<<div style="max-width: 800px; margin: 30px auto; padding: 0 20px;">
+    <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main, inherit); margin-bottom: 5px;">My Tickets</h2>
+    <p style="color: var(--text-muted, #9ca3af); font-size: 0.95rem; margin-bottom: 25px;">Show ticket's QR code at the entrance to check in.</p>
 
     <?php if (empty($myTickets)): ?>
-        <div class="card empty-state" style="padding: 40px; border-radius: 12px; text-align: center;">
+        <div class="card empty-state" style="padding: 40px; border-radius: 12px; text-align: center; border: 1px solid var(--border, #374151); background: var(--bg-card, #1f2937);">
             <div class="empty-state-icon" style="font-size: 2.5rem; margin-bottom: 10px;">&#128196;</div>
-            <p style="font-size: 1rem; opacity: 0.8;">You haven't booked any tickets yet.</p>
+            <p style="color: var(--text-main, #f3f4f6); font-size: 1rem;">You haven't booked any tickets yet.</p>
         </div>
     <?php else: ?>
         <div style="display: flex; flex-direction: column; gap: 20px;">
