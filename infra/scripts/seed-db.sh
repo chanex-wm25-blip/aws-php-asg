@@ -37,6 +37,12 @@ if [ "$ALREADY_SEEDED" -gt 0 ]; then
     mysql "${MYSQL_ARGS[@]}" -D "shuttle_bus_db" -e \
       "ALTER TABLE tickets ADD COLUMN status ENUM('pending', 'confirmed', 'cancelled') NOT NULL DEFAULT 'pending';"
   fi
+  HAS_CHAT_MESSAGES=$(mysql "${MYSQL_ARGS[@]}" -N -e \
+    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='shuttle_bus_db' AND table_name='chat_messages'")
+  if [ "$HAS_CHAT_MESSAGES" -eq 0 ]; then
+    mysql "${MYSQL_ARGS[@]}" -D "shuttle_bus_db" -e \
+      "CREATE TABLE chat_messages (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, sender ENUM('user', 'admin') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users(id), INDEX idx_chat_messages_user_id (user_id));"
+  fi
   if [ -n "$BUCKET_NAME" ]; then
     # Fix image paths even if already seeded, in case we're rerunning to fix them
     S3_PREFIX="https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/uploads/"
