@@ -26,7 +26,7 @@ require 'partials/header.php';
         <ul style="list-style: none; padding: 0;">
             <?php foreach ($users as $u): ?>
                 <li style="margin-bottom: 8px;">
-                    <a href="chat.php?user_id=<?= $u['id'] ?>" class="btn btn-small <?= $activeUserId === $u['id'] ? '' : 'btn-secondary' ?>" style="display: block; text-align: left;">
+                    <a href="admin_chat.php?user_id=<?= $u['id'] ?>" class="btn btn-small <?= $activeUserId === $u['id'] ? '' : 'btn-secondary' ?>" style="display: block; text-align: left;">
                         <?= htmlspecialchars($u['name']) ?>
                     </a>
                 </li>

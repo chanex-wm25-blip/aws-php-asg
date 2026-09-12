@@ -6,7 +6,7 @@ require_login();
 header('Content-Type: application/json');
 
 $uid = current_user_id();
-$isAdmin = is_admin();
+$isAdmin = current_user_is_admin();
 $targetUser = $isAdmin ? (int)($_GET['user_id'] ?? $_POST['user_id'] ?? 0) : $uid;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

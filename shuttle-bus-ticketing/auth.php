@@ -75,7 +75,10 @@ function current_user_is_admin() {
 
 function require_login() {
     if (!current_user_id()) {
-        header('Location: login.php');
+        $loginPath = strpos($_SERVER['SCRIPT_NAME'] ?? '', '/admin/') !== false
+            ? '../login.php'
+            : 'login.php';
+        header('Location: ' . $loginPath);
         exit;
     }
 }
