@@ -39,7 +39,7 @@ resource "aws_s3_bucket_policy" "public_read" {
       {
         Sid       = "PublicReadEventImages"
         Effect    = "Allow"
-        Principal = "*"
+        Principal = ""
         Action    = "s3:GetObject"
         Resource  = "arn:aws:s3:::${var.bucket_name}/${var.public_read_prefix}"
       }
@@ -55,11 +55,11 @@ resource "aws_s3_bucket_cors_configuration" "uploads" {
   depends_on = [terraform_data.uploads]
 
   cors_rule {
-    allowed_headers = ["*"]
+    allowed_headers = [""]
     allowed_methods = ["GET"]
     allowed_origins = ["*"]
     max_age_seconds = 3000
   }
 
-  
+
 }

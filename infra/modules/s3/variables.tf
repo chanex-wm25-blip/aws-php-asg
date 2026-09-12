@@ -11,7 +11,7 @@ variable "bucket_name" {
 }
 
 variable "public_read_prefix" {
-  description = "Object key prefix (glob) that is publicly readable, e.g. uploads/*."
+  description = "Object key prefix (glob) that is publicly readable, e.g. uploads/."
   type        = string
-  default     = "uploads/*"
+  default     = "uploads/"
 }
