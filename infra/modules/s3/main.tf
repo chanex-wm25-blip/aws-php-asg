@@ -32,7 +32,7 @@ resource "aws_s3_bucket_public_access_block" "uploads" {
 }
 
 resource "aws_s3_bucket_policy" "public_read" {
-  bucket = aws_s3_bucket.uploads.id
+  bucket = var.bucket_name
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -50,7 +50,7 @@ resource "aws_s3_bucket_policy" "public_read" {
 }
 
 resource "aws_s3_bucket_cors_configuration" "uploads" {
-  bucket = aws_s3_bucket.uploads.id
+  bucket = var.bucket_name
 
   depends_on = [terraform_data.uploads]
 
