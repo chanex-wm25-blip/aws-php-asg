@@ -250,12 +250,13 @@ require 'partials/header.php';
     }
 
     function updateTotals() {
-        var count = selectedSeatLabels.length;
-        seatQuantityInput.value = count;
-        seatNumbersInput.value = selectedSeatLabels.join(', ');
-        countDisplay.textContent = count;
-        priceDisplay.textContent = (count * price).toFixed(2);
-    }
+    var count = selectedSeatLabels.length;
+    seatQuantityInput.value = count;
+
+    seatNumbersInput.value = selectedSeatLabels.join(', '); 
+    countDisplay.textContent = count;
+    priceDisplay.textContent = (count * price).toFixed(2);
+}
 
     function refresh() {
         var date = dateInput.value;

@@ -56,7 +56,16 @@ require 'partials/header.php';
                 ];
                 $style = $bgColors[$status] ?? '#f3f4f6; color: #374151;';
 
-                $seats = array_map('trim', explode(',', $t['seat_numbers']));
+                $rawSeatStr = str_replace(['|', ' '], [',', ''], $t['seat_numbers']);
+                $seats = array_filter(array_map('trim', explode(',', $rawSeatStr)));
+
+                    if (empty($seats) && (int)$t['seat_quantity'] > 0) {
+                         $seats = [];
+                         for ($i = 1; $i <= (int)$t['seat_quantity']; $i++) {
+                            $seats[] = $i . 'A';
+                   }
+                }
+
                 $totalSeatsInTicket = count($seats);
                 $pricePerSeat = $totalSeatsInTicket > 0 ? ($t['total_price'] / $totalSeatsInTicket) : $t['total_price'];
 
