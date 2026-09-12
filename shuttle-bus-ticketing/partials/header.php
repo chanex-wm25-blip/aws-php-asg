@@ -47,7 +47,21 @@ function nav_active($page, $current) {
 <?php else: ?>
 <a href="login.php">Login</a>
 <a href="register.php">Register</a>
-<a href="chat.php">Support Chat</a>
+<a href="chat.php" class="<?= trim(nav_active('chat.php', $currentPage)) ?>">Support Chat</a>
+<?php if ($loggedIn): ?>
+<div class="user-menu">
+<button type="button" class="nav-user user-menu-trigger" aria-haspopup="true" aria-expanded="false">
+<span class="user-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr(current_user_name(), 0, 1))) ?></span> Hi, <?= htmlspecialchars(current_user_name()) ?>
+</button>
+<div class="user-menu-dropdown">
+<a href="account.php">My Account</a>
+<a href="logout.php">Logout</a>
+</div>
+</div>
+<?php else: ?>
+<a href="login.php">Login</a>
+<a href="register.php">Register</a>
+<?php endif; ?>
 <?php endif; ?>
 <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">&#9728;</button>
 </div>
