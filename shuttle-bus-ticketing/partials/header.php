@@ -47,6 +47,7 @@ function nav_active($page, $current) {
 <?php else: ?>
 <a href="login.php">Login</a>
 <a href="register.php">Register</a>
+<a href="chat.php">Support Chat</a>
 <?php endif; ?>
 <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">&#9728;</button>
 </div>
