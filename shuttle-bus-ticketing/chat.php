@@ -11,9 +11,9 @@ require 'partials/header.php';
 <div class="card" style="max-width: 600px; margin: 30px auto; padding: 20px;">
     <h2>Live Support Chat</h2>
     <div id="chat-box" style="height: 350px; overflow-y: auto; border: 1px solid #e5e7eb; padding: 12px; border-radius: 8px; margin: 15px 0; background: #fafafa;"></div>
-    <div style="display: flex; gap: 8px;">
-        <input type="text" id="chat-input" placeholder="Type your message..." style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px;">
-        <button id="send-btn" class="btn" style="background: #49afdb; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;">Send</button>
+    <div style="display: flex; gap: 10px; align-items: center; width: 100%; box-sizing: border-box;">
+        <input type="text" id="chat-input" placeholder="Type your message..." style="flex: 1 1 auto; min-width: 0; width: 100%; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.95rem; outline: none; background: #fff; height: 45px; box-sizing: border-box; display: block;">
+        <button id="send-btn" class="btn" style="background: #49afdb; color: white; padding: 0 24px; height: 45px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0;">Send</button>
     </div>
 </div>
 
@@ -55,6 +55,13 @@ document.getElementById('send-btn').addEventListener('click', async () => {
         body: JSON.stringify({ message: msg })
     });
     fetchMessages();
+});
+
+// Allow pressing Enter key to send message
+document.getElementById('chat-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        document.getElementById('send-btn').click();
+    }
 });
 
 setInterval(fetchMessages, 3000);
