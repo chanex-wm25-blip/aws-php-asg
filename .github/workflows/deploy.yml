@@ -176,11 +176,14 @@ jobs:
             --instance-ids $ONLINE_IDS \
             --comment "${{ env.APP_TAG }} deploy" \
             --parameters '{"commands":[
-              "cloud-init status --wait",
+              "set -e",
+              "cloud-init status --wait || true",
+              "if ! command -v httpd >/dev/null 2>&1; then sudo dnf install -y httpd php php-mysqlnd php-cli unzip; fi",
+              "sudo mkdir -p /var/www/html",
               "aws s3 cp s3://${{ env.ARTIFACT_BUCKET }}/${{ env.ARTIFACT_PREFIX }}/${{ env.ARTIFACT_NAME }} /tmp/app-deploy.zip",
               "sudo find /var/www/html -mindepth 1 -maxdepth 1 ! -name 'uploads' -exec rm -rf -- {} +",
               "sudo unzip -o /tmp/app-deploy.zip -d /var/www/html",
-              "sudo systemctl restart httpd"
+              "sudo systemctl enable --now httpd"
             ]}' \
             --query "Command.CommandId" --output text)
 
