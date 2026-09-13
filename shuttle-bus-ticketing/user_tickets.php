@@ -9,7 +9,8 @@ $myTickets = [];
 if ($uid) {
     $stmt = $conn->prepare("
         SELECT t.id, r.route_name, r.origin, r.destination, r.departure_time, 
-               t.travel_date, t.seat_quantity, t.total_price,
+               t.travel_date, t.seat_quantity,
+               CASE WHEN t.total_price = 0 AND r.price > 0 THEN r.price * t.seat_quantity ELSE t.total_price END AS total_price,
                COALESCE(t.seat_numbers, '-') AS seat_numbers,
                COALESCE(t.status, 'pending') AS status
         FROM tickets t
@@ -92,7 +93,7 @@ require 'partials/header.php';
 
                 <!-- Right: Price & Actions -->
                 <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-end; flex-shrink: 0;">
-                    <span style="font-size: 1rem; font-weight: 600;">RM<?= number_format($pricePerSeat, 2) ?></span>
+                    <span style="font-size: 1rem; font-weight: 600;">RM<?= number_format((float)$t['total_price'], 2) ?></span>
                     <?php if ($status !== 'cancelled'): ?>
                         <div style="display: flex; gap: 8px; align-items: center; justify-content: flex-end; white-space: nowrap;">
                             <a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$t['id'] ?>" style="padding: 6px 12px; font-size: 0.85rem; display: inline-flex; align-items: center; height: 32px; box-sizing: border-box;">Edit Booking</a>

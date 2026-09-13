@@ -9,7 +9,8 @@ $uid = current_user_id();
 
 // Fetch ticket and route info
 $stmt = $conn->prepare("
-    SELECT t.*, r.route_name, r.departure_time 
+        SELECT t.*, r.route_name, r.departure_time,
+               CASE WHEN t.total_price = 0 AND r.price > 0 THEN r.price * t.seat_quantity ELSE t.total_price END AS display_total_price
     FROM tickets t 
     JOIN routes r ON r.id = t.route_id 
     WHERE t.id = ? AND t.user_id = ?
@@ -73,12 +74,12 @@ require 'partials/header.php';
     <div style="background: rgba(0,0,0,0.04); padding: 15px; border-radius: 8px; border: 1px solid var(--border, #e5e7eb); margin-bottom: 20px;">
         <p style="margin: 0 0 8px 0;"><strong>Seat(s):</strong> <?= htmlspecialchars($seatDisplay) ?></p>
         <p style="margin: 0 0 8px 0;"><strong>Travel Date:</strong> <?= htmlspecialchars($ticket['travel_date']) ?></p>
-        <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #a855f7;">Total Amount: RM<?= number_format($ticket['total_price'], 2) ?></p>
+        <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #a855f7;">Total Amount: RM<?= number_format($ticket['display_total_price'], 2) ?></p>
     </div>
 
     <form method="post">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf_token()) ?>">
-        <button type="submit" class="btn" style="background: #2563eb; color: white; width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer;">Pay RM<?= number_format($ticket['total_price'], 2) ?></button>
+        <button type="submit" class="btn" style="background: #2563eb; color: white; width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer;">Pay RM<?= number_format($ticket['display_total_price'], 2) ?></button>
     </form>
 
     <p style="margin-top: 15px; text-align: center;"><a href="user_tickets.php" style="opacity: 0.7; font-size: 0.85rem; text-decoration: none;">Cancel / Pay Later</a></p>
