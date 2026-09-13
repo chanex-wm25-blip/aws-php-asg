@@ -39,20 +39,21 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
 
-  metric_name = "HTTPCode_ELB_5XX_Count"
+  metric_name = "HTTPCode_Target_5XX_Count"
   namespace   = "AWS/ApplicationELB"
 
   period    = 60
   statistic = "Sum"
   threshold = 10
 
-  alarm_description = "ALB returned more than 10 HTTP 5xx errors in one minute."
+  alarm_description = "Application targets returned more than 10 HTTP 5xx errors per minute for 2 consecutive minutes."
 
   alarm_actions = [aws_sns_topic.alerts.arn]
   ok_actions    = [aws_sns_topic.alerts.arn]
 
   dimensions = {
     LoadBalancer = var.alb_arn_suffix
+    TargetGroup  = var.target_group_arn_suffix
   }
 }
 
