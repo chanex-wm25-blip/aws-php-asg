@@ -33,7 +33,7 @@ $seatArray = array_filter(array_map('trim', explode(',', $rawSeats)));
 $formattedSeats = array_map(function ($seat) {
     if (is_numeric($seat) && (int)$seat > 0) {
         $num = (int)$seat;
-        $r = Math.ceil($num / 4);
+        $r = (int)ceil($num / 4);
         $letters = ['A', 'B', 'C', 'D'];
         return $r . $letters[($num - 1) % 4];
     }

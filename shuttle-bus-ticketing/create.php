@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $total_price = $route['price'] * $seat_quantity;
 
                     $stmt = $conn->prepare("INSERT INTO tickets (user_id, route_id, travel_date, seat_quantity, seat_numbers, total_price, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')");
-                    $stmt->bind_param('iissds', $uid, $route_id, $travel_date, $seat_quantity, $seat_numbers, $total_price);
+                    $stmt->bind_param('iiisds', $uid, $route_id, $travel_date, $seat_quantity, $seat_numbers, $total_price);
                     
                     if ($stmt->execute()) {
                         $newTicketId = $stmt->insert_id;
