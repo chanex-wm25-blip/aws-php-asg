@@ -76,13 +76,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $conn->rollback();
             } else {
                 $total_price = $ticket['price'] * $seat_quantity;
+                $previous_total = (float)$ticket['total_price'];
+                if ($previous_total <= 0 && (float)$ticket['price'] > 0) {
+                    $previous_total = (float)$ticket['price'] * (int)$ticket['seat_quantity'];
+                }
+                $payment_required = $ticket['status'] === 'pending'
+                    || ($ticket['status'] !== 'cancelled'
+                        && abs($previous_total - $total_price) > 0.005);
 
-                $stmt = $conn->prepare('UPDATE tickets SET travel_date=?, seat_quantity=?, seat_numbers=?, total_price=? WHERE id=? AND user_id=?');
-                $stmt->bind_param('sisdii', $travel_date, $seat_quantity, $seat_numbers, $total_price, $id, $uid);
+                $new_status = $payment_required ? 'pending' : $ticket['status'];
+                $stmt = $conn->prepare('UPDATE tickets SET travel_date=?, seat_quantity=?, seat_numbers=?, total_price=?, status=? WHERE id=? AND user_id=?');
+                $stmt->bind_param('sisdsii', $travel_date, $seat_quantity, $seat_numbers, $total_price, $new_status, $id, $uid);
                 $stmt->execute();
                 $stmt->close();
                 $conn->commit();
-                header('Location: user_tickets.php');
+                header('Location: ' . ($payment_required ? 'payment.php?id=' . $id : 'user_tickets.php'));
                 exit;
             }
         }
