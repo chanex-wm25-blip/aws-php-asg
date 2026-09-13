@@ -91,7 +91,9 @@ module "asg" {
 module "sns" {
   source = "../../modules/sns"
 
-  name_prefix = var.name_prefix
-  alert_email = var.alert_email
-  asg_name    = "${var.name_prefix}-asg"
+  name_prefix             = var.name_prefix
+  alert_email             = var.alert_email
+  asg_name                = "${var.name_prefix}-asg"
+  alb_arn_suffix          = module.alb.alb_arn_suffix
+  target_group_arn_suffix = module.alb.target_group_arn_suffix
 }
