@@ -32,7 +32,7 @@ CREATE TABLE routes (
 INSERT INTO routes (route_name, origin, destination, departure_time, price, total_seats, image_url) VALUES
 ('Campus - City Centre Express', 'Main Campus', 'City Centre', '08:00', 3.00, 40, '/uploads/sample-city-express.jpg'),
 ('Campus - LRT Shuttle', 'Main Campus', 'LRT Station', '09:30', 2.00, 30, '/uploads/sample-lrt-shuttle.jpg'),
-('Campus - Hostel Loop', 'Main Campus', 'Student Hostel', '17:30', 0.00, 25, '/uploads/sample-hostel-loop.jpg')，
+('Campus - Hostel Loop', 'Main Campus', 'Student Hostel', '17:30', 0.00, 25, '/uploads/sample-hostel-loop.jpg'),
 ('Campus - Mid Valley Shuttle', 'Main Campus', 'Mid Valley', '12:00', 3.50, 35, '/uploads/Midvalley.jpg'),
 ('Campus - Bukit Bintang Shuttle', 'Main Campus', 'Bukit Bintang', '13:00', 4.50, 40, '/uploads/Pavilion Bukit Bintang.jpg'),
 ('Campus - Setapak Shuttle', 'Main Campus', 'Setapak', '16:00', 2.50, 40, '/uploads/Setapak Central.jpg'),

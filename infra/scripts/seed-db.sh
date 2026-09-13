@@ -43,6 +43,27 @@ if [ "$ALREADY_SEEDED" -gt 0 ]; then
     mysql "${MYSQL_ARGS[@]}" -D "shuttle_bus_db" -e \
       "CREATE TABLE chat_messages (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, sender ENUM('user', 'admin') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users(id), INDEX idx_chat_messages_user_id (user_id));"
   fi
+  # Apply route additions from the committed seed data without replacing
+  # routes, tickets, or other data already created by users.
+  mysql "${MYSQL_ARGS[@]}" -D "shuttle_bus_db" <<'SQL'
+INSERT INTO routes (route_name, origin, destination, departure_time, price, total_seats, image_url)
+SELECT seed.route_name, seed.origin, seed.destination, seed.departure_time,
+       seed.price, seed.total_seats, seed.image_url
+FROM (
+  SELECT 'Campus - Mid Valley Shuttle' AS route_name, 'Main Campus' AS origin, 'Mid Valley' AS destination, '12:00' AS departure_time, 3.50 AS price, 35 AS total_seats, '/uploads/Midvalley.jpg' AS image_url
+  UNION ALL SELECT 'Campus - Bukit Bintang Shuttle', 'Main Campus', 'Bukit Bintang', '13:00', 4.50, 40, '/uploads/Pavilion Bukit Bintang.jpg'
+  UNION ALL SELECT 'Campus - Setapak Shuttle', 'Main Campus', 'Setapak', '16:00', 2.50, 40, '/uploads/Setapak Central.jpg'
+  UNION ALL SELECT 'Campus - Sunway Shuttle', 'Main Campus', 'Sunway Velocity Mall', '14:30', 5.00, 40, '/uploads/Sunway Velocity Mall.jpg'
+  UNION ALL SELECT 'Campus - Sport Complex Shuttle', 'Main Campus', 'Sport Complex', '17:00', 2.00, 30, '/uploads/Sport Complex.jpg'
+  UNION ALL SELECT 'Campus - Bandar Utama Shuttle', 'Main Campus', '1U Bandar Utama', '18:00', 4.00, 40, '/uploads/Bandar Utama.jpg'
+  UNION ALL SELECT 'Campus - Pasar Seni Shuttle', 'Main Campus', 'Pasar Seni', '10:00', 3.00, 40, '/uploads/Pasar Seni Central Market.jpg'
+  UNION ALL SELECT 'Campus - KL Edition Doraemon Shuttle', 'Main Campus', 'City Centre', '15:30', 3.00, 40, '/uploads/doraemon bus.jpg'
+  UNION ALL SELECT 'Campus - Suria KLCC Shuttle', 'Main Campus', 'Suria KLCC', '20:00', 4.50, 40, '/uploads/Suria KLCC Mall.jpg'
+) AS seed
+WHERE NOT EXISTS (
+  SELECT 1 FROM routes existing WHERE existing.route_name = seed.route_name
+);
+SQL
   if [ -n "$BUCKET_NAME" ]; then
     # Fix image paths even if already seeded, in case we're rerunning to fix them
     S3_PREFIX="https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/uploads/"
