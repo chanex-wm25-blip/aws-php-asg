@@ -1,4 +1,3 @@
-```php
 <?php
 
 require 'config.php';
@@ -10,6 +9,19 @@ header('Content-Type: application/json');
 
 $uid = current_user_id();
 $isAdmin = current_user_is_admin();
+
+$input = [];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = json_decode(
+        file_get_contents('php://input'),
+        true
+    );
+
+    if (!is_array($input)) {
+        $input = [];
+    }
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -24,7 +36,11 @@ $isAdmin = current_user_is_admin();
 */
 
 if ($isAdmin) {
-    $targetUser = (int)($_GET['user_id'] ?? $_POST['user_id'] ?? 0);
+    $targetUser = (int)(
+        $_GET['user_id']
+        ?? $input['user_id']
+        ?? 0
+    );
 
     if ($targetUser <= 0) {
         http_response_code(400);
@@ -85,11 +101,6 @@ if ($isAdmin) {
 */
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-    $input = json_decode(
-        file_get_contents('php://input'),
-        true
-    );
 
     if (!is_array($input)) {
 
