@@ -21,7 +21,7 @@ resource "terraform_data" "uploads" {
 }
 
 resource "aws_s3_bucket_public_access_block" "uploads" {
-   bucket = var.bucket_name
+  bucket = var.bucket_name
 
   depends_on = [terraform_data.uploads]
 
@@ -41,7 +41,7 @@ resource "aws_s3_bucket_policy" "public_read" {
         Effect    = "Allow"
         Principal = "*"
         Action    = "s3:GetObject"
-        Resource = "arn:aws:s3:::${var.bucket_name}/${var.public_read_prefix}*"
+        Resource  = "arn:aws:s3:::${var.bucket_name}/${var.public_read_prefix}*"
       }
     ]
   })

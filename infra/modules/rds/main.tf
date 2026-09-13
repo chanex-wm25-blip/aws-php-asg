@@ -36,6 +36,6 @@ resource "aws_db_instance" "this" {
   apply_immediately       = true
 
   lifecycle {
-  prevent_destroy = true
+    prevent_destroy = true
   }
 }

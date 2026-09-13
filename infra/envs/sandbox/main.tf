@@ -85,7 +85,7 @@ module "asg" {
   desired_capacity      = var.asg_desired_capacity
   artifact_bucket       = module.s3.bucket_id
   artifact_key          = var.artifact_key
-  sns_topic_arn = module.sns.topic_arn
+  sns_topic_arn         = module.sns.topic_arn
 }
 
 module "sns" {
