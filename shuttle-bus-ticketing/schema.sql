@@ -32,7 +32,18 @@ CREATE TABLE routes (
 INSERT INTO routes (route_name, origin, destination, departure_time, price, total_seats, image_url) VALUES
 ('Campus - City Centre Express', 'Main Campus', 'City Centre', '08:00', 3.00, 40, '/uploads/sample-city-express.jpg'),
 ('Campus - LRT Shuttle', 'Main Campus', 'LRT Station', '09:30', 2.00, 30, '/uploads/sample-lrt-shuttle.jpg'),
-('Campus - Hostel Loop', 'Main Campus', 'Student Hostel', '17:30', 0.00, 25, '/uploads/sample-hostel-loop.jpg');
+('Campus - Hostel Loop', 'Main Campus', 'Student Hostel', '17:30', 0.00, 25, '/uploads/sample-hostel-loop.jpg')，
+('Campus - Mid Valley Shuttle', 'Main Campus', 'Mid Valley', '12:00', 3.50, 35, '/uploads/Midvalley.jpg'),
+('Campus - Bukit Bintang Shuttle', 'Main Campus', 'Bukit Bintang', '13:00', 4.50, 40, '/uploads/Pavilion Bukit Bintang.jpg'),
+('Campus - Setapak Shuttle', 'Main Campus', 'Setapak', '16:00', 2.50, 40, '/uploads/Setapak Central.jpg'),
+('Campus - Sunway Shuttle', 'Main Campus', 'Sunway Velocity Mall', '14:30', 5.00, 40, '/uploads/Sunway Velocity Mall.jpg'),
+('Campus - Sport Complex Shuttle', 'Main Campus', 'Sport Complex', '17:00', 2.00, 30, '/uploads/Sport Complex.jpg'),
+('Campus - Bandar Utama Shuttle', 'Main Campus', '1U Bandar Utama', '18:00', 4.00, 40, '/uploads/Bandar Utama.jpg'),
+('Campus - Pasar Seni Shuttle', 'Main Campus', 'Pasar Seni', '10:00', 3.00, 40, '/uploads/Pasar Seni Central Market.jpg'),
+('Campus - KL Edition Doraemon Shuttle', 'Main Campus', 'City Centre', '15:30', 3.00, 40, '/uploads/doraemon bus.jpg'),
+('Campus - Suria KLCC Shuttle','Main Campus', 'Suria KLCC', '20:00', 4.50, 40,'/uploads/Suria KLCC Mall.jpg');
+
+
 
 CREATE TABLE tickets (
   id INT AUTO_INCREMENT PRIMARY KEY,
