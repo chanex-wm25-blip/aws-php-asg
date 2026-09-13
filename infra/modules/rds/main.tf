@@ -30,8 +30,9 @@ resource "aws_db_instance" "this" {
   publicly_accessible = false
 
   # Allow the sandbox to be destroyed while retaining a final snapshot.
-  skip_final_snapshot       = true
-  final_snapshot_identifier = "shuttle-bus-ticketing-rds-final"
+  skip_final_snapshot       = false
+  final_snapshot_identifier = "${var.name_prefix}-rds-final"
+  backup_retention_period   = 7
   deletion_protection       = false
   apply_immediately         = true
 }
