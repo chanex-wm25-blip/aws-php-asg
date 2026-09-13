@@ -98,10 +98,10 @@ require 'partials/header.php';
                     type="text"
                     id="chat-input"
                     name="message"
+                    class="chat-input"
                     placeholder="Type a response..."
                     autocomplete="off"
                     required
-                    style="width: 100%; min-width: 0; margin: 0; color: #191c22; pointer-events: auto;"
                 >
 
                 <button
