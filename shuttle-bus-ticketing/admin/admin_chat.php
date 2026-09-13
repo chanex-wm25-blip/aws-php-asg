@@ -275,4 +275,3 @@ if (activeUserId) {
 
 
 <?php require 'partials/footer.php'; ?>
-```
