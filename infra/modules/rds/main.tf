@@ -31,7 +31,7 @@ resource "aws_db_instance" "this" {
 
   # Allow the sandbox to be destroyed while retaining a final snapshot.
   skip_final_snapshot       = false
-  final_snapshot_identifier = "${var.name_prefix}-rds-final"
+  final_snapshot_identifier = "${var.name_prefix}-rds-final-snapshot-${execution_id}"
   backup_retention_period   = 7
   deletion_protection       = false
   apply_immediately         = true
