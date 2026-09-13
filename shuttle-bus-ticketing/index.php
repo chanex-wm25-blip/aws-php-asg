@@ -14,12 +14,16 @@ require 'helpers.php';
 error_log('Index database connection is ready');
 
 $search = trim($_GET['q'] ?? '');
+$availabilityDate = $_GET['travel_date'] ?? date('Y-m-d');
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $availabilityDate)) {
+    $availabilityDate = date('Y-m-d');
+}
 
 if ($search !== '') {
     $stmt = $conn->prepare('
         SELECT r.*, COALESCE(SUM(t.seat_quantity), 0) AS booked_seats 
-        FROM routes r 
-        LEFT JOIN tickets t ON r.id = t.route_id AND t.travel_date = CURDATE() 
+        FROM routes r
+        LEFT JOIN tickets t ON r.id = t.route_id AND t.travel_date = ?
         WHERE r.route_name LIKE ? 
         GROUP BY r.id 
         ORDER BY r.departure_time
@@ -30,7 +34,7 @@ if ($search !== '') {
         die('Unable to load routes. Check the server error log.');
     }
     $likeSearch = '%' . $search . '%';
-    $stmt->bind_param('s', $likeSearch);
+    $stmt->bind_param('ss', $availabilityDate, $likeSearch);
     if (!$stmt->execute()) {
         error_log('Index route search execute failed: ' . $stmt->error);
         http_response_code(500);
@@ -39,19 +43,26 @@ if ($search !== '') {
     $routes = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 } else {
-    $routeResult = $conn->query('
-        SELECT r.*, COALESCE(SUM(t.seat_quantity), 0) AS booked_seats 
-        FROM routes r 
-        LEFT JOIN tickets t ON r.id = t.route_id AND t.travel_date = CURDATE() 
+    $stmt = $conn->prepare('
+        SELECT r.*, COALESCE(SUM(t.seat_quantity), 0) AS booked_seats
+        FROM routes r
+        LEFT JOIN tickets t ON r.id = t.route_id AND t.travel_date = ?
         GROUP BY r.id 
         ORDER BY r.departure_time
     ');
-    if (!$routeResult) {
-        error_log('Index route query failed: ' . $conn->error);
+    if (!$stmt) {
+        error_log('Index route query prepare failed: ' . $conn->error);
         http_response_code(500);
         die('Unable to load routes. Check the server error log.');
     }
-    $routes = $routeResult->fetch_all(MYSQLI_ASSOC);
+    $stmt->bind_param('s', $availabilityDate);
+    if (!$stmt->execute()) {
+        error_log('Index route query execute failed: ' . $stmt->error);
+        http_response_code(500);
+        die('Unable to load routes. Check the route data and database connection.');
+    }
+    $routes = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
 }
 
 error_log('Index routes loaded: count=' . count($routes));
@@ -65,9 +76,10 @@ require 'partials/header.php';
 </section>
 
 <section>
-<h2>Available Routes</h2>
+<h2>Available Routes for <?= htmlspecialchars($availabilityDate) ?></h2>
 <form method="get" class="filter-bar" id="route-filter-form">
 <label>Search <input type="text" name="q" id="route-search" placeholder="Route name..." value="<?= htmlspecialchars($search) ?>" autocomplete="off"></label>
+<label>Travel date <input type="date" name="travel_date" value="<?= htmlspecialchars($availabilityDate) ?>" min="<?= date('Y-m-d') ?>"></label>
 <button type="submit">Search</button>
 <?php if ($search !== ''): ?><a class="btn btn-secondary" href="index.php">Clear</a><?php endif; ?>
 </form>
