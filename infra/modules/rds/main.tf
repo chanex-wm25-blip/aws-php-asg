@@ -29,13 +29,10 @@ resource "aws_db_instance" "this" {
   multi_az            = false
   publicly_accessible = false
 
-  # Sandbox environment: prioritize cheap/disposable over durability.
-  skip_final_snapshot     = false
-  backup_retention_period = 7
-  deletion_protection     = true
-  apply_immediately       = true
-
-  lifecycle {
-    prevent_destroy = true
-  }
+  # Allow the sandbox to be destroyed while retaining a final snapshot.
+  skip_final_snapshot       = false
+  final_snapshot_identifier = "${var.name_prefix}-rds-final"
+  backup_retention_period   = 7
+  deletion_protection       = false
+  apply_immediately         = true
 }
