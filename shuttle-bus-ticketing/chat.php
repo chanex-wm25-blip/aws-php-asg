@@ -11,10 +11,10 @@ require 'partials/header.php';
 <div class="card" style="max-width: 600px; margin: 30px auto; padding: 20px;">
     <h2>Live Support Chat</h2>
     <div id="chat-box" style="height: 350px; overflow-y: auto; border: 1px solid #e5e7eb; padding: 12px; border-radius: 8px; margin: 15px 0; background: #fafafa;"></div>
-    <div style="display: flex; gap: 10px; align-items: center; width: 100%; box-sizing: border-box;">
-        <input type="text" id="chat-input" placeholder="Type your message..." style="flex: 1 1 auto; min-width: 0; width: 100%; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.95rem; outline: none; background: #fff; height: 45px; box-sizing: border-box; display: block;">
-        <button id="send-btn" class="btn" style="background: #49afdb; color: white; padding: 0 24px; height: 45px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0;">Send</button>
-    </div>
+    <form id="chat-form" style="display: flex; gap: 10px; align-items: center; width: 100%; box-sizing: border-box;">
+        <input type="text" id="chat-input" name="message" placeholder="Type your message..." autocomplete="off" required style="flex: 1 1 auto; min-width: 0; width: 100%; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.95rem; outline: none; background: #fff; color: #191c22; height: 45px; box-sizing: border-box; display: block; pointer-events: auto;">
+        <button type="submit" id="send-btn" class="btn" style="background: #49afdb; color: white; padding: 0 24px; height: 45px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0;">Send</button>
+    </form>
 </div>
 
 <script>
@@ -43,25 +43,23 @@ async function fetchMessages() {
     }
 }
 
-document.getElementById('send-btn').addEventListener('click', async () => {
+document.getElementById('chat-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
     const input = document.getElementById('chat-input');
     const msg = input.value.trim();
     if (!msg) return;
 
-    input.value = '';
-    await fetch('chat_api.php', {
+    const res = await fetch('chat_api.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg })
     });
-    fetchMessages();
-});
-
-// Allow pressing Enter key to send message
-document.getElementById('chat-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        document.getElementById('send-btn').click();
+    if (!res.ok) {
+        console.error('Chat message failed:', await res.text());
+        return;
     }
+    input.value = '';
+    fetchMessages();
 });
 
 setInterval(fetchMessages, 3000);

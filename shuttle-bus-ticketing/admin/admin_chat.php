@@ -40,8 +40,10 @@ require 'partials/header.php';
         <?php if ($activeUserId > 0): ?>
             <div id="chat-box" style="height: 350px; overflow-y: auto; border: 1px solid var(--border); padding: 12px; border-radius: 8px; margin-bottom: 12px;"></div>
             <div style="display: flex; gap: 8px;">
-                <input type="text" id="chat-input" placeholder="Type a response..." style="flex: 1;">
-                <button id="send-btn" class="btn">Send</button>
+                <form id="chat-form" style="display: flex; gap: 8px; flex: 1;">
+                    <input type="text" id="chat-input" name="message" placeholder="Type a response..." autocomplete="off" required style="flex: 1; color: #191c22; pointer-events: auto;">
+                    <button type="submit" id="send-btn" class="btn">Send</button>
+                </form>
             </div>
         <?php else: ?>
             <p>Select a user to start chatting.</p>
@@ -52,6 +54,12 @@ require 'partials/header.php';
 <script>
 const activeUserId = <?= $activeUserId ?>;
 
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 async function fetchMessages() {
     if (!activeUserId) return;
     const res = await fetch(`../chat_api.php?user_id=${activeUserId}`);
@@ -60,22 +68,27 @@ async function fetchMessages() {
     box.innerHTML = data.messages.map(m => `
         <div style="text-align: ${m.sender === 'admin' ? 'right' : 'left'}; margin-bottom: 10px;">
             <span style="background: ${m.sender === 'admin' ? '#0066ff' : '#e5e7eb'}; color: ${m.sender === 'admin' ? '#fff' : '#000'}; padding: 8px 14px; border-radius: 12px; display: inline-block;">
-                ${m.message}
+                ${escapeHtml(m.message)}
             </span>
             <small style="display:block; font-size: 0.7rem; color: #888; margin-top: 2px;">${m.time}</small>
         </div>
     `).join('');
 }
 
-document.getElementById('send-btn')?.addEventListener('click', async () => {
+document.getElementById('chat-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
     const input = document.getElementById('chat-input');
     if (!input.value.trim()) return;
 
-    await fetch('../chat_api.php', {
+    const res = await fetch('../chat_api.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: activeUserId, message: input.value })
     });
+    if (!res.ok) {
+        console.error('Chat message failed:', await res.text());
+        return;
+    }
     input.value = '';
     fetchMessages();
 });
