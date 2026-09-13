@@ -14,15 +14,24 @@ require_once __DIR__ . '/helpers.php';
 // ============================================================================
 $secret = get_db_secret();
 
-$host   = $secret['DB_HOST']   ?? (getenv('DB_HOST')   ?: 'shuttle-bus-ticketing-rds.ciut3d7gmvv8.us-east-1.rds.amazonaws.com');
-$user   = $secret['DB_USER']   ?? (getenv('DB_USER')   ?: 'root');
-$pass   = $secret['DB_PASS']   ?? (getenv('DB_PASS')   ?: '');
-$dbname = $secret['DB_NAME']   ?? (getenv('DB_NAME')   ?: 'shuttle_bus_db');
+$configuredHost = getenv('DB_HOST') ?: '';
+$isLocalXampp = PHP_OS_FAMILY === 'Windows' && $configuredHost === '';
+$host   = $secret['DB_HOST'] ?? $secret['host'] ?? ($configuredHost ?: ($isLocalXampp ? '127.0.0.1' : ''));
+$port   = (int)($secret['DB_PORT'] ?? $secret['port'] ?? (getenv('DB_PORT') ?: 3306));
+$user   = $secret['DB_USER'] ?? $secret['username'] ?? (getenv('DB_USER') ?: 'root');
+$pass   = $secret['DB_PASS'] ?? $secret['password'] ?? (getenv('DB_PASS') ?: '');
+$dbname = $secret['DB_NAME'] ?? $secret['dbname'] ?? (getenv('DB_NAME') ?: 'shuttle_bus_db');
 
-$conn = @new mysqli($host, $user, $pass, $dbname);
+if ($host === '') {
+    http_response_code(500);
+    error_log('Database connection configuration is missing DB_HOST. Check Secrets Manager and Apache environment variables.');
+    die('Database connection is not configured. Check the server error log.');
+}
+
+$conn = @new mysqli($host, $user, $pass, $dbname, $port);
 if ($conn->connect_error) {
     http_response_code(500);
-    error_log('Database connection failed: ' . $conn->connect_error);
+    error_log(sprintf('Database connection failed: host=%s port=%d database=%s error=%s', $host, $port, $dbname, $conn->connect_error));
     die('Database connection failed. Check the server error log.');
 }
 
