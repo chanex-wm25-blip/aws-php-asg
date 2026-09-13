@@ -11,9 +11,9 @@ require 'partials/header.php';
 <div class="card" style="max-width: 600px; margin: 30px auto; padding: 20px;">
     <h2>Live Support Chat</h2>
     <div id="chat-box" style="height: 350px; overflow-y: auto; border: 1px solid #e5e7eb; padding: 12px; border-radius: 8px; margin: 15px 0; background: #fafafa;"></div>
-    <form id="chat-form" style="display: flex; gap: 10px; align-items: center; width: 100%; box-sizing: border-box;">
-        <input type="text" id="chat-input" name="message" placeholder="Type your message..." autocomplete="off" required style="flex: 1 1 auto; min-width: 0; width: 100%; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.95rem; outline: none; background: #fff; color: #191c22; height: 45px; box-sizing: border-box; display: block; pointer-events: auto;">
-        <button type="submit" id="send-btn" class="btn" style="background: #49afdb; color: white; padding: 0 24px; height: 45px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0;">Send</button>
+    <form id="chat-form" style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; box-sizing: border-box;">
+        <input type="text" id="chat-input" name="message" placeholder="Type your message..." autocomplete="off" required style="width: 100%; min-width: 0; margin: 0; padding: 12px 16px; color: #191c22; height: 45px; box-sizing: border-box; pointer-events: auto;">
+        <button type="submit" id="send-btn" class="btn" style="height: 45px; padding: 0 24px; white-space: nowrap;">Send</button>
     </form>
 </div>
 
@@ -49,17 +49,21 @@ document.getElementById('chat-form').addEventListener('submit', async (event) =>
     const msg = input.value.trim();
     if (!msg) return;
 
-    const res = await fetch('chat_api.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg })
-    });
-    if (!res.ok) {
-        console.error('Chat message failed:', await res.text());
-        return;
+    try {
+        const res = await fetch('chat_api.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: msg })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || 'Message could not be sent.');
+        }
+        input.value = '';
+        fetchMessages();
+    } catch (error) {
+        console.error('Chat message failed:', error);
     }
-    input.value = '';
-    fetchMessages();
 });
 
 setInterval(fetchMessages, 3000);

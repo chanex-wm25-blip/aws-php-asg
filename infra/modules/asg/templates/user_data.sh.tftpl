@@ -33,6 +33,7 @@ SetEnv DB_PASS "$DB_PASS"
 SetEnv DB_NAME "$DB_NAME"
 SetEnv AWS_S3_BUCKET "${artifact_bucket}"
 SetEnv AWS_S3_REGION "${aws_region}"
+SetEnv SNS_TOPIC_ARN "${sns_topic_arn}"
 EOF
 
 cat <<EOF | install -o root -g apache -m 0640 /dev/stdin /etc/assignment-db.env

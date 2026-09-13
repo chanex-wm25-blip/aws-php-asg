@@ -85,4 +85,13 @@ module "asg" {
   desired_capacity      = var.asg_desired_capacity
   artifact_bucket       = module.s3.bucket_id
   artifact_key          = var.artifact_key
+  sns_topic_arn = module.sns.topic_arn
+}
+
+module "sns" {
+  source = "../../modules/sns"
+
+  name_prefix = var.name_prefix
+  alert_email = var.alert_email
+  asg_name    = "${var.name_prefix}-asg"
 }

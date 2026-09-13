@@ -78,3 +78,8 @@ variable "cpu_target_value" {
   type        = number
   default     = 70
 }
+
+variable "sns_topic_arn" {
+  description = "SNS topic ARN used by the PHP application for alerts."
+  type        = string
+}

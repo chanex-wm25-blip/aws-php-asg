@@ -234,7 +234,16 @@ $stmt->bind_param(
     $targetUser
 );
 
-$stmt->execute();
+if (!$stmt->execute()) {
+    error_log('Chat select execute failed: ' . $stmt->error);
+    $stmt->close();
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Unable to load chat messages.'
+    ]);
+    exit;
+}
 
 
 $messages = $stmt

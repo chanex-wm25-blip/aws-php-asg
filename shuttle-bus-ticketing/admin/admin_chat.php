@@ -1,4 +1,3 @@
-```php
 <?php
 require '../config.php';
 require '../auth.php';
@@ -92,7 +91,7 @@ require 'partials/header.php';
 
             <form
                 id="chat-form"
-                style="display: flex; gap: 8px;"
+                style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%;"
             >
 
                 <input
@@ -102,17 +101,14 @@ require 'partials/header.php';
                     placeholder="Type a response..."
                     autocomplete="off"
                     required
-                    style="
-                        flex: 1;
-                        color: #191c22;
-                        pointer-events: auto;
-                    "
+                    style="width: 100%; min-width: 0; margin: 0; color: #191c22; pointer-events: auto;"
                 >
 
                 <button
                     type="submit"
                     id="send-btn"
                     class="btn"
+                    style="height: 45px; white-space: nowrap;"
                 >
                     Send
                 </button>
